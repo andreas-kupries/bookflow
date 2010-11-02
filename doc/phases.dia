@@ -1,0 +1,89 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+
+proc mbox {args} {
+    box width [8 cm] fillcolor lightgreen {*}$args
+}
+proc pbox {args} {
+    box width [8 cm] fillcolor lightyellow {*}$args
+}
+
+east
+drum width [4 cm] height [8 cm] aspect 0.1 "BOOKFLOW DB" fillcolor lightblue
+move ; move
+
+set p [block {
+    south
+    set movelength [1 cm]
+    set sd [mbox "Scan Directory" "(Implied to have an order)"]
+    group {
+	southwest
+	arrow
+	pbox "Create thumbnail"
+    }
+    southeast
+    arrow
+    set gr1 [pbox "Convert to greyscale (I)"]
+    south
+    arrow
+    set cb [pbox "Compute brightness"]
+    arrow
+    set cl [mbox "Classify The Brightness"]
+    arrow
+    set ci [pbox "Classify By Brightness" "MarkerB | MarkerW | Page | Unknown"]
+    group {
+	southwest
+	arrow down left left
+	set bm [pbox "Detect SOB | MOB | EOB"]
+	group {
+	    south
+	    arrow
+	    mbox "Separate multiple books"
+	    arrow
+	    mbox "Separate even|odd|not pages"
+	    group { east ; line ; arrow }
+	    arrow
+	    mbox "Separate cover pages" "& reorder"
+	}
+    }
+    group {
+	south
+	arrow
+	set lf [pbox "Detect light field"]
+	arrow
+	set no [pbox "Normalize background"]
+	arrow
+	pbox "Rotate upright"
+	arrow
+	pbox "Unwarp perspective"
+	group {
+	    southeast ; arrow down right right
+	    pbox "Compute DPI"
+	}
+	arrow
+	set gr2 [pbox "Convert to greyscale (II)"]
+	arrow
+	set re [pbox "Reduce size"]
+	arrow
+	pbox "Determine rough page borders"
+	arrow
+	mbox "Inter-page border exchange"
+	arrow
+	pbox "Finalize page borders"
+	arrow
+	pbox "Segment page" "Text | Images | Lines"
+	arrow
+	pbox "Line shape"
+	arrow
+	pbox "Unwarp lines"
+    }
+    group {
+	southeast
+	arrow down right right
+	set dp [pbox "Find fiducials (DPI & perspective)" "(original image)"]
+	south
+	arrow down down down down down down then down left left left left left left
+    }
+}]
+
+move ; move
+circle radius [4 cm] fillcolor grey "ScoreBoard" "(in memory)"

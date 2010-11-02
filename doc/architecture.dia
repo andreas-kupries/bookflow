@@ -1,0 +1,43 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+
+south
+box "Frontend (Thread)" "Cmdline | GUI" width [8 cm] fillcolor lightgreen
+move
+box "Engine (Thread)" width [8 cm] fillcolor lightyellow
+group {
+    arrow \
+	from [0.33 between [[2nd last box] sw] [[2nd last box] se]] \
+	to   [0.33 between [[last box]     nw] [[last box]     ne]] \
+	"Commands " rjust
+    arrow \
+	from [0.33 between [[last box]     ne] [[last box]     nw]] \
+	to   [0.33 between [[2nd last box] se] [[2nd last box] sw]] \
+	" Responses" ljust
+}
+block {
+    set movelength [1 cm]
+    east
+    box "Worker-\nthread" fillcolor salmon
+    group { arrow <-> from [[last box] n] north }
+    move
+    box same
+    group { arrow <-> from [[last box] n] north }
+    move
+    box same
+    group { arrow <-> from [[last box] n] north }
+    set E [[last box] e]
+    set W [[3rd last box] w]
+}
+group {
+    east
+    arrow <-> from [[last box] e] stroke 4
+    box height [8 cm] width [4 cm] "Filesystem" fillcolor lightblue
+    arrow <-> stroke 4 from [[last block] E]
+    arrow <-> stroke 4 from [0.75 between [[1st box] ne] [[1st box] se]]
+}
+group {
+    west
+    arrow <-> from [[2nd last box] w] stroke 4
+    drum height [8 cm] width [4 cm] "BOOKFLOW" "(Database)" fillcolor lightblue aspect 0.1
+    arrow <-> stroke 4 from [[last block] W]
+}

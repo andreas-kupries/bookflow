@@ -1,0 +1,168 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+
+proc t {name script args} {
+    block {
+	south
+	set fields [block {
+	    circle radius 1
+	    eval $script
+	}]
+	box at [last block] \
+	    width  [expr {[[last block] width]  + [5 mm]}] \
+	    height [expr {[[last block] height] + [5 mm]}]
+	box text $name fillcolor white height [7 mm] with sw at [last box nw]
+	set X [[last box] e]
+    } {*}$args
+}
+
+proc f {type name notes args} {
+    set $name [text "$type :: $name ($notes)" with nw at [[last] sw] {*}$args]
+}
+
+proc n {text args} {
+   text "$text" textcolor red with nw at [[last] sw] {*}$args
+}
+
+proc pk {type name args} {
+    f $type $name [join $args {, }] textcolor blue
+}
+
+proc d {rows} {
+    block {
+	south
+	foreach r $rows {
+	    block {
+		east
+		foreach c $r {
+		    box height [7 mm] $c
+		}
+	    }
+	}
+    }
+}
+
+##########################################
+
+south
+
+t global {
+    f int dpi {}
+}
+
+move
+
+t book {
+    pk int bid {not null}
+    f string name {unique, not null}
+}
+
+east
+arrow <- bid above
+
+t bi {
+    f int bid    {not null}
+    f int iid    {not null}
+    f int serial {not null}
+    n "unique (iid, serial)"
+}
+
+arrow iid above
+
+set image [t image {
+    pk int    iid  {not null}
+    f  string path {not null, unique}
+    f  int    ord  {not null, unique}
+}]
+
+east
+group {
+    arrow <- right right iid above
+
+   t is1 {
+	f int iid {not null}
+	f int sid {not null}
+    }
+
+    arrow right right sid above
+
+    t state1 {
+	pk int   sid   {not null}
+	f string label {not null, unique}
+    }
+
+    arrow from [[last block] X] right right right data above
+
+    d {
+	{0 "white"}
+	{1 "black"}
+	{2 "page"}
+    }
+}
+
+group {
+    arrow <- down down down right then right iid above
+    east
+    t is2 {
+	f int iid {not null}
+	f int sid {not null}
+    }
+
+    arrow right right sid above
+
+    t state2 {
+	pk int   sid   {not null}
+	f string label {not null, unique}
+    }
+
+    arrow from [[last block] X] right right right data above
+
+    d {
+	{ 0 "sob1" {! "black"}}
+	{ 1 "sob2" {! "black"}}
+	{ 2 "sob3" {! "white"}}
+	{ 3 "mob1" {! "black"}}
+	{ 4 "mob2" {! "white"}}
+	{ 5 "mob3" {! "black"}}
+	{ 6 "eob1" {! "white"}}
+	{ 7 "eob2" {! "black"}}
+	{ 8 "eob3" {! "black"}}
+	{ 9 "even" {! "page"}}
+	{10 "odd"  {! "page"}}
+	{11 "none" {! "page"}}
+    }
+}
+
+group {
+    arrow <- down down down down down down right then right iid above
+    east
+    t it {
+	f int iid {not null}
+	f int tid {not null}
+    }
+
+    arrow right right tid above
+
+    t type {
+	pk int   tid   {not null}
+	f string label {not null, unique}
+    }
+
+    arrow from [[last block] X] right right right data above
+
+    d {
+	{ 0 "frontc" {! "odd"}}
+	{ 1 "backc"  {! "even"}}
+	{ 2 "page"   {! "page"}}
+    }
+}
+
+
+group {
+    arrow <- up up up right then right iid above
+    east
+    set istate [t brightness {
+	f int iid   {not null}
+	f int value {not null}
+    }]
+
+}

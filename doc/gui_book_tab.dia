@@ -1,0 +1,132 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+
+######################################################################
+
+proc portrait {h args} {
+    box height $h width [expr {0.75*$h}] {*}$args
+}
+
+proc landscape {w args} {
+    box width $w height [expr {0.75*$w}] {*}$args
+}
+
+proc thumb {args} {
+    landscape [16 mm] "Thumb" {*}$args
+}
+
+proc sthumb {args} {
+    thumb {*}$args stroke 3
+}
+
+proc ellipsis {} {
+    move same ; circle rad [1 mm] fillcolor black
+    move same ; circle same
+    move same ; circle same
+}
+
+proc leftarrow {args} {
+    box {*}$args ; group {
+	line \
+	    from [[[last box] ne] by [2 mm] sw] \
+	    then [[[last box]  w] by [2 mm]  e] \
+	    then [[[last box] se] by [2 mm] nw] \
+	    to   [[[last box] ne] by [2 mm] sw]
+    }
+}
+
+proc rightarrow {args} {
+    box {*}$args ; group {
+	line \
+	    from [[[last box] nw] by [2 mm] se] \
+	    then [[[last box]  e] by [2 mm]  w]  \
+	    then [[[last box] sw] by [2 mm] ne] \
+	    to   [[[last box] nw] by [2 mm] se]
+    }
+}
+
+
+proc bseries {args} {
+    block {
+	block {
+	    east
+	    portrait [9 cm] "Left page" "Odd"
+	    move right [5 mm]
+	    portrait [9 cm] "Right page" "Even"
+	}
+
+	set sl [box with s at [[[last block] n] by [5 mm] n] width [[last block] width]]
+	block {
+	    east              ; thumb
+	    move right [2 mm] ; thumb
+	    ellipsis
+	    move same ; sthumb
+	    move same ; sthumb
+	    ellipsis
+	    move same ; thumb
+	    move same ; thumb
+	} with c at [[last box] c]
+
+	leftarrow   with e at [[$sl w] by [2 mm] w]
+	rightarrow  with w at [[$sl e] by [2 mm] e]
+
+    } {*}$args
+}
+
+proc wrap {e} {
+    # e = element to wrap.
+
+    set x [[arc rad [5 mm] from [[$e sw] by [5 mm] left]] start]
+    line right [$e width]
+    arc rad [5 mm]
+    line up [$e height]
+    arc rad [5 mm]
+    line left [$e width]
+    arc rad [5 mm]
+    tabB Images
+    tab  {Book 1}
+    tabA ...
+    tabA {Book N}
+    line to $x
+}
+
+proc tab {{text {}}} {
+    arc rad [5 mm] cw ; line ; tablabel $text
+    arc rad [5 mm]    ; line down [5 mm]
+    arc rad [5 mm]    ; line
+    arc rad [5 mm] cw
+    return
+}
+proc tabB {{text {}}} {
+    group {
+	arc rad [5 mm] cw ; line ; tablabel $text
+	arc rad [5 mm]    ; line down [5 mm]
+	arc rad [5 mm]
+    }
+    line down [15 mm]
+}
+
+proc tabA {{text {}}} {
+    group {
+	west
+	arc rad [5 mm] from [[2nd last arc] end]
+	line down [5 mm]
+	arc rad [5 mm] ; line ; tablabel $text up
+	arc rad [5 mm] cw
+    }
+}
+
+proc tablabel {text {dir down}} {
+    if {$text eq {}} return
+    group {
+	text text $text with c at [[[last line] c] by [7.5 mm] $dir]
+    }
+    return
+}
+
+######################################################################
+
+text "Notebook Page \"Book Image Series\""
+move south [1 cm]
+wrap [bseries]
+move
+

@@ -1,0 +1,86 @@
+# -*- tcl -*- tcl.tk//DSL diagram//EN//1.0
+
+######################################################################
+
+
+proc nbpage {args} {
+    box width [18.4 cm] height [11.5 cm] {*}$args
+}
+
+proc wrap2 {e} {
+    # e = element to wrap.
+
+    set x [[arc rad [5 mm] from [[$e sw] by [5 mm] left] color red] start]
+    line right [$e width]
+    arc rad [5 mm]
+    line up [$e height]
+    arc rad [5 mm]
+    line left [$e width]
+    arc rad [5 mm]
+    line to $x
+}
+
+proc wrap {e} {
+    # e = element to wrap.
+
+    set x [[arc rad [5 mm] from [[$e sw] by [5 mm] left]] start]
+    line right [$e width]
+    arc rad [5 mm]
+    line up [$e height]
+    arc rad [5 mm]
+    line left [$e width]
+    arc rad [5 mm]
+    tabB Images
+    tab  {Book 1}
+    tabA ...
+    tabA {Book N}
+    line to $x
+}
+
+proc tab {{text {}}} {
+    arc rad [5 mm] cw ; line ; tablabel $text
+    arc rad [5 mm]    ; line down [5 mm]
+    arc rad [5 mm]    ; line
+    arc rad [5 mm] cw
+    return
+}
+proc tabB {{text {}}} {
+    group {
+	arc rad [5 mm] cw ; line ; tablabel $text
+	arc rad [5 mm]    ; line down [5 mm]
+	arc rad [5 mm]
+    }
+    line down [15 mm]
+}
+
+proc tabA {{text {}}} {
+    group {
+	west
+	arc rad [5 mm] from [[2nd last arc] end]
+	line down [5 mm]
+	arc rad [5 mm] ; line ; tablabel $text up
+	arc rad [5 mm] cw
+    }
+}
+
+proc tablabel {text {dir down}} {
+    if {$text eq {}} return
+    group {
+	text text $text with c at [[[last line] c] by [7.5 mm] $dir]
+    }
+    return
+}
+
+######################################################################
+
+text "Overall gui, image notebook + rightside action log"
+move south [1 cm]
+
+wrap2 [block {
+    block { wrap [nbpage "Notebook page"] }
+    east
+    move east [5 mm]
+    box height [[last block] height] width [6 cm] "Log of Engine Activity"
+}]
+move
+

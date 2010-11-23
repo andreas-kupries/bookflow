@@ -14,6 +14,7 @@ package require Tk
 package require blog            ; # End-user visible activity logging,
 package require widget::log     ; # and the display for it.
 package require widget::toolbar
+package require bookflow::scan
 
 namespace eval ::bookflow {}
 
@@ -51,6 +52,8 @@ proc ::bookflow::Start {arguments} {
     }
 
     Log.bookflow {Project in $projectdir}
+
+    bookflow::scan $projectdir
 
     # TODO :: Scan directory ... Push infromation into the scoreboard.
     # TODO :: Launch the other tasklets monitoring the scoreboard for

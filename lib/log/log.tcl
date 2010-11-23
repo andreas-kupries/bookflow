@@ -15,7 +15,8 @@
 # (currently only stderr is used.  there is some complexity in efficient
 # cross-threaded streams.)
 
-package provide log 1.0
+package require debug
+debug off log
 
 namespace eval ::log {}
 
@@ -64,9 +65,6 @@ proc ::log::log {tag message {level 1}} {
 	set head $tag
 	set blank [regsub -all . $tag { }]
 	foreach line [split $result \n] {
-
-puts <$result>
-
 	    #{*}$fd puts* $head
 	    #{*}$fd puts* { | }
 	    {*}$fd puts  $line
@@ -125,6 +123,8 @@ proc ::log::prefix {tag {theprefix {}}} {
 
 # turn on logging for tag
 proc ::log::on {tag {level ""} {fd {}}} {
+    variable active
+    set active($tag) 1
     level $tag $level $fd
     interp alias {} Log.$tag {} ::log::log $tag
     return
@@ -132,6 +132,8 @@ proc ::log::on {tag {level ""} {fd {}}} {
 
 # turn off logging for tag
 proc ::log::off {tag {level ""} {fd {}}} {
+    variable active
+    set active($tag) 0
     level $tag $level $fd
     interp alias {} Log.$tag {} ::log::noop
     return
@@ -158,6 +160,72 @@ proc ::log::setting {args} {
     return
 }
 
+# ### ### ### ######### ######### #########
+## Communication setup for concurrent tasks.
+## Thread based.
+
+namespace eval ::log::thread {}
+
+proc ::log::thread::link {main} {
+    variable ::log::detail
+    variable ::log::prefix
+    variable ::log::fds
+
+    Debug.log {  Setting up log for $main}
+
+    # Import main's status.
+    array set detail [thread::send $main {array get ::log::detail}]
+    array set prefix [thread::send $main {array get ::log::prefix}]
+    array set active [thread::send $main {array get ::log::active}]
+    # We do not import any custom write commands.
+    # Any writing goes through the global setting, which is
+    # reconfigured to perform the necessary inter-thread
+    # communication.
+
+    # Replicate (in)active status of the tags.
+    foreach {t a} [array get active] {
+	if {$a} {
+	    interp alias {} Log.$t {} ::log::log $t
+	} else {
+	    interp alias {} Log.$t {} ::log::noop
+	}
+    }
+
+    set fds(::) [list ::log::thread::ToMain $main]
+
+    return
+}
+
+proc ::log::thread::ToMain {main cmd text} {
+    upvar 1 tag tag
+    thread::send -async $main \
+	[list ::log::thread::FromTask $tag $cmd $text]
+    return
+}
+
+proc ::log::thread::FromTask {tag cmd text} {
+    # This is a variant of log::log without all the substitutions. It
+    # determines the actual write command per the tag and invokes it
+    # with the specifiec method and text.
+
+    # It is the receiver of messages coming from concurrently running
+    # tasks.
+
+    variable ::log::fds
+
+    if {[catch {
+	set fd $fds($tag)
+    }]} {
+	set fd $fds(::)
+    }
+
+    {*}$fd $cmd $text
+    return
+}
+
+# ### ### ### ######### ######### #########
+## Standard log writer command
+
 namespace eval ::log::Write {
     namespace export puts puts*
     namespace ensemble create
@@ -174,10 +242,14 @@ proc ::log::Write::puts* {text} {
     return
 }
 
+# ### ### ### ######### ######### #########
+## State
+
 namespace eval ::log {
     variable detail  ; # map: TAG -> level of interest
     variable prefix  ; # map: TAG -> message prefix to use
     variable fds     ; # map: TAG -> command prefix to use for writing the message.
+    variable active  ; # map: TAG -> boolean flag, true if tag is active.
 
     # Notes:
     # The tag '::' is reserved.
@@ -189,6 +261,17 @@ namespace eval ::log {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+
+# ### ### ### ######### ######### #########
+## Look for the magic of package task, and if found, reconfigure
+## ourselves to write to the main system. Do not forget to import the
+## main's status as well.
+
+::apply {{} {
+    if {![namespace exists ::task]} return
+    ::log::${::task::type}::link $::task::main
+    return
+}}
 
 # ### ### ### ######### ######### #########
 ## Ready

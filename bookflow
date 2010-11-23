@@ -1,0 +1,27 @@
+#!/bin/sh
+## -*- tcl -*- \
+exec tclsh "$0" ${1+"$@"}
+
+# # ## ### ##### ######## ############# #####################
+## Copyright (c) 2010 Andreas Kupries.
+#
+# This software is BSD licensed.
+# # ## ### ##### ######## ############# #####################
+
+## Command line application wrapped around the flow packages.
+
+# # ## ### ##### ######## ############# #####################
+## Requirements, extended package management for local packages.
+
+lappend auto_path [file join [file dirname [info script]] lib]
+
+package require Tcl 8.5  ; # Required runtime.
+package require bookflow ; # Main functionality.
+
+# # ## ### ##### ######## ############# #####################
+## Execution
+
+bookflow run $argv
+exit 0
+
+# # ## ### ##### ######## ############# #####################

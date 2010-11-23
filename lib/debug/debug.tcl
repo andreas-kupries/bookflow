@@ -12,7 +12,7 @@
 # (currently only stderr is used.  there is some complexity in efficient
 # cross-threaded streams.)
 
-package provide debug 2.0
+package provide debug 1.0
 
 namespace eval debug {}
 
@@ -101,14 +101,14 @@ proc ::debug::prefix {tag {theprefix {}}} {
 # turn on debugging for tag
 proc ::debug::on {tag {level ""} {fd stderr}} {
     level $tag $level $fd
-    interp alias {} Debug.$tag {} ::Debug::debug $tag
+    interp alias {} Debug.$tag {} ::debug::debug $tag
     return
 }
 
 # turn off debugging for tag
 proc ::debug::off {tag {level ""} {fd stderr}} {
     level $tag $level $fd
-    interp alias {} Debug.$tag {} ::Debug::noop
+    interp alias {} Debug.$tag {} ::debug::noop
     return
 }
 

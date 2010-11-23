@@ -1,0 +1,134 @@
+Interaction between a display of multiple images (view + controller)
+and a model holding the images to show.
+====================================================================
+
+The model is a container of images, i.e.:
+
+* It holds a list of images. Note that 'list' implies an order on the images.
+* It has the following information per image (all optional (*))
+  - name of the image, relative to the project directory
+  - path of the thumbnail image, relative to the project directory
+  - classification 0: use/ignore
+  - classification 1: black/white/page
+  - classification 2: sob/mob/eob/even/odd
+  - classification 3: na/content/front/back
+
+  (*) To allow the use of placeholders for missing pieces, be they
+      pages or the various markers.
+
+The model broadcasts events on changes to its contents, i.e:
+
+* An image is added
+* The state of an image changes
+  - name becomes known
+  - thumbnail becomes known or changes.
+  - classification X becomes known or changes.
+
+Views for a model are driven by these events, having bound to the
+model and them.
+
+Notes on the information and their constraints:
+
+(a) An image without name is a placeholder for missing data.
+(b) A placeholder has the classifications which describe the type of
+    the missing piece.
+(c) A missing thumbnail is a temporary condition the model will
+    rectify as fast as possible.
+
+(d) Classification 0 is orthogonal to the classifications 1-3. Where
+    the latter describe what the image is, in increasing detail, this
+    one tells us whether to use the image later, or not.
+
+(e) The classifications 1, 2, and 3 are building on each other,
+    i.e. the higher numbered classifications can be known if and
+    only if the lower-numbered classifications are available. In
+    addition a number of constraints are put on the values restricting
+    the set of legal combinations.
+
+    1-unknown => 2-unknown => 3-unknown
+
+    2-sob  => 1-black|1-white
+    2-mob  => 1-black|1-white
+    2-eob  => 1-black|1-white
+    2-even => 1-page
+    2-odd  => 1-page
+
+    3-content     => 2-even|2-odd
+    3-front       => 2-odd
+    3-back        => 2-even
+    3-na	  => 2-sob|2-mob|2-eob
+
+    Based on these constraints the legal combinations are shown
+    below. On the right additional notes on how the combination is
+    shown by a view.
+
+	c1	c2	c3		view
+	------------------------	--------
+*	unknown	unknown	unknown		plain name, thumbnail (when present)
+	------------------------	--------
+	black	unknown	unknown		3 pixel wide black border
+		----------------	--------
+		sob	unknown		3 pixel wide green border
+			na		ditto
+		----------------	--------
+		mob	unknown		3 pixel wide yellow border
+			na		ditto
+		----------------	--------
+		eob	unknown		3 pixel wide magenta border
+			na		ditto
+	------------------------	--------
+	white	unknown	unknown		3 pixel wide salmon border
+		----------------	--------
+		sob	unknown		3 pixel wide green border
+			na 		ditto			
+		----------------	--------
+		mob	unknown		3 pixel wide yellow border
+			na 		ditto			
+		----------------	--------
+		eob	unknown		3 pixel wide magenta border
+			na 		ditto			
+	------------------------	--------
+*	page	unknown	unknown		plain name, thumbnail (when present)
+		----------------	--------
+*		even	unknown		plain name, thumbnail (when present)
+			content		3 pixel wide blue border
+			back		3 pixel wide orange border
+		----------------	--------
+*		odd	unknown		plain name, thumbnail (when present)
+			content		3 pixel wide blue border
+			front		3 pixel wide orange border
+	------------------------	--------
+
+	The starred entries are currently visually undistinguishable.
+
+	See if the treecontrol allows for dashed and dotted borders /
+	rectangles around items for additional ways of distinguishing
+	states.
+
+Two open issues, which are related to each other
+
+(1) How do we communicate the order of images in the model, and
+(2) How do we communicate changes to the order between images.
+
+====================================================================
+
+The view is also a controller, i.e. actions taken by the user are
+communicated to the 
+
+
+
+
+
+
+
+
+
+
+
+- The model has to announce the presence of new images
+- The model has to annonce when the thumbnail for an image is available.
+- The model has to announce when the thumbnail of an image is changed.
+- The model has to announce the removal of images
+- The model has to announce changes to the information about an image
+  (status, type, ...)
+

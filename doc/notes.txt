@@ -1,0 +1,43 @@
+Possible scan errors
+====================
+
+duplicate pages
+missing markers	- insert fake marker
+missing pages	- insert fake (empty) page/placeholder
+missing cover	- insert fake cover (see fake page)
+missing lightfield - synthesize
+
+cover scanned out of order (last instead of first, or in the middle).
+
+Heuristics
+==========
+
+detect marker
+detect lightfield
+synthesize lightfield
+page brightness (-> grey -> mean, or hsv -> value -> mean)
+page color (-> hsv -> hue -> mean)
+picture orientation
+detect page number => orientation cue, even/odd cue, number itself for
+order
+compare pages (similarity = detect duplicate)
+first order by image name
+
+crimp - ppm file - save/read HSV!
+crimp - up/down sample x/y separate
+
+auto-dpi = 6 lines/height
+auto-dpi via markers (square lines - also perspective warp, global)
+
+auto-crop
+
+
+---
+scan tailor mixed mode tiff image
+
+If I flip the pure-black pixels to white, I have the graphical version
+of the image. If I flip non-pure-black pixels to white, I have the
+textual version of the image. Yes?
+
+== pure black = text
+== grey-scale = grey images, never going up to pure black (255)

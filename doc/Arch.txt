@@ -1,0 +1,297 @@
+
+Overview
+========
+
+	Bookflow is an application processing the JPEG images found in
+	a directory into zero or more 'books'.
+
+	The directory is also called a 'project'.
+
+	Each project may contain zero or more books.
+
+Syntax
+======
+
+	bookflow <directory> ?... range of passes, other options...?
+
+Overall behaviour
+=================
+
+(1)	If the <directory> contains a file named BOOKFLOW:
+
+	(a)    Check that it is a valid bookflow state file.	[R1]
+	       Report an error, if not.
+
+	(b)    Run the specified passes.			[R2]
+	       If no passes where specified, run them all.	[R3]
+
+(2)	The <directory> does not contain a file named BOOKFLOW:
+
+	Scan the directory for JPEG files. The scanning is not	[R4]
+	recursive, i.e. only images in the directory itself
+	count. Subdirectories and their contents are ignored.
+
+	Report an error if none are present.			[R5]
+
+	Create BOOKFLOW with the found JPEG files recorded	[R6]
+	in it.
+
+		The BOOKFLOW file will contain, per JPEG image
+		=	Name,
+		=	Size
+		=	SHA1 checksum.
+
+
+	Proceed with (1).					[R6]
+
+Validation [R1]
+===============
+
+	A valid BOOKFLOW file is a sqlite3 database.		[R11]
+
+	The database contains an entry for all JPEG files	[R12]
+	found in the directory.
+
+		"No files were added since the last bookflow run"
+
+	The database contains no entries for which there	[R13]
+	is no JPEG file in the directory.
+
+		"No files were removed since the last bookflow run"
+
+	The SHA1 checksums recorded for a JPEG file matches    [R14]
+	the SHA1 checksum of the file in the directory
+
+		"No files were modified since the last bookflow run"
+
+Passes, General
+===============
+
+	Each pass has three phases, namely			[R21]
+		initialization, execution, and finalization.
+
+	Passes come in monolithic and parallel varieties.	[R22]
+
+	The first means  that the actions of the pass for	[R23]
+	each image in the BOOKFLOW are tied together and
+	cannot be separated.
+
+	Conversely the latter means that the actions of the	[R24]
+	pass for each image in the BOOKFLOW can be separated
+	from each other and performed concurrently.
+
+	If the initialization phase of a pass is run, then	[R25]
+	this is done before its execution and finalization
+	phases.
+
+	If the execution phase of a pass is run, then this	[R26]
+	is done after its initialization and before its
+	finalization phases.
+		
+	If the finalization phase of a pass is run, then	[R27]
+	this is done after its initialization and execution
+	phases.
+
+	The passes of bookflow have a fixed order, which is
+	specified later.
+
+	For a monolithic pass A executed before a pass B all	[R28]
+	phases of A which are run, are run before any of the
+	phases of B.
+
+	For a pass A executed before a monolithic pass B all	[R29]
+	phases of A which are run, are run before any of the
+	phases of B.
+
+	For a parallel pass A executed before a parallel	[R210]
+	pass B all the phases of A which are run for a
+	specific image, are run before any of the phases of B
+	for the same image.
+
+	When performing the passes from A to B, with A a pass
+	coming before B in the order of passes the following
+	phases are run, with their order constrained by the
+	rules above:
+
+		The initialization phases from the first	[R211]
+		pass to pass B.
+
+		The finalization phases from pass A to the	[R212]
+		last pass.
+
+		The execution phases from pass A to pass B.	[R213]
+
+Passes, Bookflow
+================
+
+	Bookflow uses the following passes to process
+	the images in the directory/project.
+
+
+	A.	Parallel.
+		Compute brightness of all images.
+
+	B.	Monolithic.
+		Sort the brightness values into 3 classes based on
+		their, using k-Means classification.
+
+		The classes in question are:
+
+		- marker black
+		- marker white
+		- book page
+
+	C.	Parallel.
+		Mark all images with their class.
+
+	D.	Monolithic.
+		Use the image names to impose an order on the images,
+		then use the image class information to locate the
+		various multi-image markers, i.e.
+
+		black/black/white   - SOB    Start of Book, Even pages begin.
+		black/white/black   - MOB    Middle of Book, Odd pages begin.
+		white/black/black   - EOB    End of Book.
+
+		Reclassify the images as
+
+		- marker, ignored     
+		- book page, even     images between SOB and MOB
+		- book page, odd      images between MOB and EOB
+		- ignored	      images between EOB and SOB
+				      images before first SOB
+				      images after last EOB.
+
+		and separate them into books (images between SOB and EOB).
+
+		Error conditions:
+
+		- No SOB, MOB, and EOB found.
+		- No MOB between SOB and EOB.
+
+	E.	Parallel.
+		Rotate the book page images upright, with the rotation
+		dependent on the classification as even or odd.
+
+		Note:	  This modifies the images in the project directory.
+			  We have to remember this in the project so that we
+			  won't try to rotate them later again, and we have
+			  to update the size/checksum info.
+
+		Alternative: The rotated images are stored in a sub-directory,
+		and the originals are left untouched. We still remember the
+		information in the bookflow file so that we can skip this
+		action when needed.
+
+	F.	Parallel.
+		For each image generate a downsampled copy to make the later
+		passes faster (less pixels to process).
+
+	G.	Parallel.
+		Determine the DPI of all images marked as book pages.
+
+		[[ Initially: Manual assigment, via cmdline, or GUI ]].
+
+
+	X.	Manual classification (or heuristics:): inner marker =>
+		ignore previous image.
+
+	X.	Have special image with DPI marker (color square/circle).
+		Maybe even in the regular marker panels
+		=> black! + red circle (The white marker is already the
+		lightfield, we cannot interfere with that.
+
+	X.	Use white markers to compute light fields, and apply them
+		for regularization of the book pages.
+
+	X.	Book Information
+
+		per book	- title
+				- isbn
+				- author (list)
+				- publisher
+				- print year
+				- print edition
+
+	X.	Use the even/odd information per book to arrange a final
+		order of display (page increasing), and separate the
+		front/back cover pages.
+
+	X.	LAT (local adaptive thresholding).
+	=>	global histogram for global threshold (median)
+	=>	and per-pixel histogram (median => median filter)
+
+======================================================================
+
+Internal achitecture (modules and their interaction)
+
+(1)	 Engine and Frontends are separate packages / libraries.
+
+	 Two frontends are provided
+
+	 (a)	A pure command line.
+	 (b)	A graphical interface.
+
+(2)	 Engine and Frontend are run in different threads.
+	 Communication is handles via thread::send.
+	 Bulk data (images) is communicated via the filesystem,
+	 using file names in the commands issued through 'thread::send'.
+
+(3)	 The engine has to be interuptible, for the graphical frontend
+	 able to take control at an arbitrary point.
+
+	 The ability to cancel a phase in progress is required too.
+
+	 This should be built, if at all possible, into the phase
+	 support- and execution framework, i.e. the phase manager.
+
+(4)	The engine may use additional, internal, threads to
+	concurrently perform actions. -- Threadpool.
+
+======================================================================
+
+User Experience
+===============
+
+(i) Start bookflow
+
+    (a) With a single argument - Open the GUI, see (1) for continued
+	behaviour
+
+    (b) With no argument
+
+        Open the GUI, see (1) for continued behaviour using the
+	current working directory as the argument.
+
+    (c) With more than one argument.
+
+        Throw an error for the user to acknowledge and abort.
+	- How to decide where to show the error, GUI or stdout ?
+	- Or treat as case (b) ?
+	- Or treat as case (a), ignoring the superfluous arguments ?
+
+
+
+
+
+
+	Vertical notebook:
+
+	Panel 1:	Images
+	Panel 2+:	Book Information. See above.
+			Including just the images in the book,
+			sorted and ordered by page number.
+
+	Show the images as thumbnails, in a grid, dynamically resizable.
+	The thumbnails display has to contain markers (icon, color, etc)
+	to make it easy to separate chaff/wheat.
+
+
+===================================================================
+
+bookflow	       <=> bookflow process CWD
+bookflow <dir>         <=> bookflow process <dir>
+bookflow process <dir>
+bookflow images
+bookflow books
+bookflow statistics

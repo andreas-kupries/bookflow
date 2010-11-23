@@ -28,66 +28,8 @@ proc ::bookflow::scan {projectdir} {
     Debug.bookflow/scan {Bookflow::Scan <$projectdir>}
 
     task launch [list ::apply {{projectdir} {
-
-	package require debug
-	debug on     bookflow/scan
-	# TODO :: Have debug work like log and reconfigure itself within a task.
-
-	package require blog
-	package require jpeg
-	package require fileutil
-	# package require scoreboard
-	# scoreboard put [list PROJECT $projectdir]
-
-	set dir [file normalize $projectdir]
-
-	set hasimages  0
-	set hasproject 0
-
-	foreach f [glob -nocomplain -directory $dir *] {
-
-	    Debug.bookflow/scan {  Processing $f}
-
-	    if {![file isfile $f]} {
-		Debug.bookflow/scan {  Directory, ignored}
-		continue
-	    }
-
-	    set fx [fileutil::stripPath $dir $f]
-
-	    if {[jpeg::isJPEG $f]} {
-		Debug.bookflow/scan {  Image}
-		set hasimages 1
-		Log.bookflow {* Image            $fx}
-		# scoreboard put [list IMAGE $fx]
-	    } elseif {$fx eq "BOOKFLOW"} {
-		Debug.bookflow/scan {  Project database found}
-		set hasproject 1
-		Log.bookflow {% Project database $fx}
-		# scoreboard put [list DATABASE $fx]
-	    } else {
-		Debug.bookflow/scan {  Ignored}
-	    }
-	}
-
-	if {$hasproject} {
-	    # Verify project against found images, then continue
-	    # as normal.
-
-	    Debug.bookflow/scan {Bookflow::Scan .Verify project}
-	    # scoreboard put {SCAN VERIFY}
-	} elseif {$hasimages} {
-	    # Create project, then continue as normal.
-	    Debug.bookflow/scan {Bookflow::Scan .Create project}
-	    # scoreboard put {SCAN CREATE}
-	} else {
-	    # Neither project, nor images found. This is
-	    # an abnormal situation. Report.
-
-	    Debug.bookflow/scan {Bookflow::Scan !Nothing found}
-	    # scoreboard put {SCAN EMPTY}
-	}
-
+	package require bookflow::scan
+	bookflow::scan::TASK $projectdir
 	task::exit
     }} $projectdir]
 
@@ -99,11 +41,82 @@ proc ::bookflow::scan {projectdir} {
 ## Internals
 
 proc ::bookflow::scan::TASK {projectdir} {
-    Debug.bookflow/scan {Bookflow::Scan <$projectdir>}
 
-    task launch ::bookflow::scan::TASK
+    # TODO :: Have debug work like log and reconfigure itself within a task.
+    package require debug
+    debug on     bookflow/scan
 
-    Debug.bookflow/scan {/}
+    # Requisites for the task
+    package require blog
+    package require jpeg
+    package require fileutil
+    # package require scoreboard
+
+    # scoreboard put [list PROJECT AT $projectdir]
+    set dir [file normalize $projectdir]
+
+    set hasimages  0
+    set hasproject 0
+
+    # Iterate over the files in the project directory.
+    # No traversal into subdirectories!
+
+    foreach f [lsort -dict [glob -nocomplain -directory $dir *]] {
+	Debug.bookflow/scan {  Processing $f}
+
+	if {![file isfile $f]} {
+	    Debug.bookflow/scan {  Directory, ignored}
+	    continue
+	}
+
+	set fx [fileutil::stripPath $dir $f]
+
+	if {[jpeg::isJPEG $f]} {
+	    Debug.bookflow/scan {  Image}
+	    set hasimages 1
+	    Log.bookflow {* Image            $fx}
+	    # scoreboard put [list IMAGE $fx]
+
+
+	    ## TODO :: Proper recognizer for the bookflow database
+	    ## independent of name.
+	} elseif {$fx eq "BOOKFLOW"} {
+	    Debug.bookflow/scan {  Project database found}
+	    set hasproject 1
+	    Log.bookflow {% Project database $fx}
+	    # scoreboard put [list DATABASE $fx]
+	} else {
+	    Debug.bookflow/scan {  Ignored}
+	}
+    }
+
+    # Scan is complete, summarize the result. This triggers other
+    # tasks.
+
+    if {$hasproject} {
+	# We have a project. Might have images or not.  Signal that
+	# this project needs verification, i.e. internal consistency
+	# check, and checking against the set of external images
+	# found.
+
+	Debug.bookflow/scan {Bookflow::Scan -> Verify project}
+	# scoreboard put {PROJECT VERIFY}
+
+    } elseif {$hasimages} {
+	# While no project database is available, we have
+	# images. Signal that we should create a fresh project
+	# database from the images.
+
+	Debug.bookflow/scan {Bookflow::Scan -> Create project}
+	# scoreboard put {PROJECT CREATE}
+    } else {
+	# Neither project, nor images were found. This is an abnormal
+	# situation. Signal the main controller to report on this.
+
+	Debug.bookflow/scan {Bookflow::Scan -> Nothing found}
+	# scoreboard put {PROJECT EMPTY}
+    }
+
     return
 }
 

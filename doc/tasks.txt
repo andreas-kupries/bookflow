@@ -1,0 +1,41 @@
+Task Documentation.
+
+Listing all tasks with the package implementing them, the
+pre-conditions, i.e. scoreboard contents (tuple existence), it
+triggers on, the results (new and removed tuples), again scoreboard
+contents, and additional scoreboard data which is accessed during the
+execution of the task.
+
+==============		============	============		===============		====================================================
+Name (Package)		Task		Conditions		Additional Data		Results				
+--------------		------------	------------		---------------		----------------------------------------------------
+bookflow::scan		Scan project	n/a, initial		none			add	(AT <dir>)		always
+			directory for							add	(IMAGE <file>)		when found
+			the project							add	(DATABASE <file>)	when found
+			DB and images							add	(PROJECT VERIFY)	| completion marker
+			to process							add	(PROJECT CREATE)	| always exactly one
+											add	(PROJECT ERROR *)	| of these
+--------------		------------	------------		---------------		----------------------------------------------------
+bookflow::error		Report an un-	(PROJECT ERROR *)	(AT *)			report error and exit.
+			usable project
+			directory to
+			the user.
+--------------		------------	------------		---------------		----------------------------------------------------
+bookflow::create	Create the	(PROJECT *)
+			project data-	=> (PROJECT VERIFY)	none			put back, abort, none
+			base in the	=> (PROJECT ERROR *)	none			put back, abort, none
+			project		=> (PROJECT CREATE)	(AT *)			create BOOKFLOW database
+								(IMAGE *)		add    (BOOK <name> <...>)	| database contents.
+											add    (VIMAGE <file> ...)	|
+											add    (PART <book> <file>)	|
+											remove (IMAGE *)
+--------------		------------	------------		---------------		----------------------------------------------------
+bookflow::verify	Load the data-	(PROJECT *)
+			base and check	=> (PROJECT CREATE)	none			put back, abort, none
+			its contents	=> (PROJECT ERROR *)	none			put back, abort, none
+			against the	=> (PROJECT VERIFY)	(AT *)			add    (PROJECT ERROR *)	| for inconsistencies
+			set of images				(IMAGE *)		add    (BOOK <name> <...>)	| verified database 
+			found by the							add    (VIMAGE <file> ...)	| contents.
+			scanner								add    (PART <book> <file>)	|
+											remove (IMAGE *)
+==============		============	============	===============		====================================================

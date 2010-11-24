@@ -14,6 +14,7 @@ package require Tk
 package require blog            ; # End-user visible activity logging,
 package require widget::log     ; # and the display for it.
 package require widget::toolbar
+package require scoreboard
 package require bookflow::scan
 
 namespace eval ::bookflow {}

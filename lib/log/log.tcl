@@ -268,7 +268,7 @@ namespace eval ::log {
 ## main's status as well.
 
 ::apply {{} {
-    if {![namespace exists ::task]} return
+    if {![info exists ::task::type]} return
     ::log::${::task::type}::link $::task::main
     return
 }}

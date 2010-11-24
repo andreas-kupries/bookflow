@@ -50,9 +50,9 @@ proc ::bookflow::scan::TASK {projectdir} {
     package require blog
     package require jpeg
     package require fileutil
-    # package require scoreboard
+    package require scoreboard
 
-    # scoreboard put [list PROJECT AT $projectdir]
+    scoreboard put [list AT $projectdir]
     set dir [file normalize $projectdir]
 
     set hasimages  0
@@ -75,7 +75,7 @@ proc ::bookflow::scan::TASK {projectdir} {
 	    Debug.bookflow/scan {  Image}
 	    set hasimages 1
 	    Log.bookflow {* Image            $fx}
-	    # scoreboard put [list IMAGE $fx]
+	    scoreboard put [list IMAGE $fx]
 
 
 	    ## TODO :: Proper recognizer for the bookflow database
@@ -84,7 +84,7 @@ proc ::bookflow::scan::TASK {projectdir} {
 	    Debug.bookflow/scan {  Project database found}
 	    set hasproject 1
 	    Log.bookflow {% Project database $fx}
-	    # scoreboard put [list DATABASE $fx]
+	    scoreboard put [list DATABASE $fx]
 	} else {
 	    Debug.bookflow/scan {  Ignored}
 	}
@@ -100,7 +100,7 @@ proc ::bookflow::scan::TASK {projectdir} {
 	# found.
 
 	Debug.bookflow/scan {Bookflow::Scan -> Verify project}
-	# scoreboard put {PROJECT VERIFY}
+	scoreboard put {PROJECT VERIFY}
 
     } elseif {$hasimages} {
 	# While no project database is available, we have
@@ -108,13 +108,13 @@ proc ::bookflow::scan::TASK {projectdir} {
 	# database from the images.
 
 	Debug.bookflow/scan {Bookflow::Scan -> Create project}
-	# scoreboard put {PROJECT CREATE}
+	scoreboard put {PROJECT CREATE}
     } else {
 	# Neither project, nor images were found. This is an abnormal
 	# situation. Signal the main controller to report on this.
 
 	Debug.bookflow/scan {Bookflow::Scan -> Nothing found}
-	# scoreboard put {PROJECT EMPTY}
+	scoreboard put {PROJECT EMPTY}
     }
 
     return

@@ -85,7 +85,18 @@ snit::type ::bookflow::db {
 	    CREATE TABLE book (
 	       bid  INTEGER  NOT NULL  PRIMARY KEY  AUTOINCREMENT,
 	       name TEXT     NOT NULL  UNIQUE
+
+	       -- FUTURE : More book information, like author, isbn,
+	       -- FUTURE : printing datum, etc. Possibly in a separate
+	       -- FUTURE : table for meta data.
 	    );
+
+	    -- The @ character is illegal in user-specified book names,
+	    -- ensuring that the standard books can never be in conflict
+	    -- with the user's names.
+
+	    INSERT INTO book VALUES (0,'@SCRATCH');
+	    INSERT INTO book VALUES (1,'@TRASH');
 
 	    -- All images, which always belong to a single book.
 	    -- Images have an order imposed on them (see field 'ord'),

@@ -51,6 +51,7 @@ proc ::bookflow::scan::TASK {projectdir} {
     package require jpeg
     package require fileutil
     package require scoreboard
+    package require bookflow::db
 
     scoreboard put [list AT $projectdir]
     set dir [file normalize $projectdir]
@@ -58,8 +59,10 @@ proc ::bookflow::scan::TASK {projectdir} {
     set hasimages  0
     set hasproject 0
 
-    # Iterate over the files in the project directory.
+    # Iteratation over the files in the project directory.
     # No traversal into subdirectories!
+    # Uses 'file'-like commands to determine the type of
+    # files (jpeg, bookflow database, other) for classification.
 
     foreach f [lsort -dict [glob -nocomplain -directory $dir *]] {
 	Debug.bookflow/scan {  Processing $f}
@@ -77,14 +80,12 @@ proc ::bookflow::scan::TASK {projectdir} {
 	    Log.bookflow {* Image            $fx}
 	    scoreboard put [list IMAGE $fx]
 
-
-	    ## TODO :: Proper recognizer for the bookflow database
-	    ## independent of name.
-	} elseif {$fx eq "BOOKFLOW"} {
+	} elseif {[bookflow::db isBookflow $f]} {
 	    Debug.bookflow/scan {  Project database found}
 	    set hasproject 1
 	    Log.bookflow {% Project database $fx}
 	    scoreboard put [list DATABASE $fx]
+
 	} else {
 	    Debug.bookflow/scan {  Ignored}
 	}

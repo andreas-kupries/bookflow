@@ -34,14 +34,14 @@ document {
 	    (3) {
 		guard  { Images found, but no project database }
 		output {
-		    add {IMAGE *}
+		    add {FILE *}
 		    add	{PROJECT CREATE}
 		}
 	    }
 	    (4) {
 		guard  { Images and project database are found }
 		output {
-		    add {IMAGE *}
+		    add {FILE *}
 		    add {DATABASE *}
 		    add	{PROJECT VERIFY}
 		}
@@ -81,7 +81,7 @@ document {
 		action {
 		    {AT *}
 		    {DATABASE *}
-		    {IMAGE *}
+		    {FILE *}
 
 		    Open database, load set of images known to it.
 		    Get the set of found images.
@@ -110,9 +110,9 @@ document {
 		action {
 		}
 		output {
-		    remove {IMAGE *}
+		    remove {FILE *}
 		    add    {BOOK <name> <...>}
-		    add    {VIMAGE <file> ...}
+		    add    {IMAGE <file> ...}
 		    add    {PART <book> <file>}
 		}
 	    }
@@ -140,9 +140,10 @@ document {
 		    Fill the scoreboard based on the information.
 		}
 		output {
-		    remove {IMAGE *}
+		    remove {FILE *}
+		    add    {DATABASE *}
 		    add    {BOOK <name> <...>}
-		    add    {VIMAGE <file> ...}
+		    add    {IMAGE <file> ...}
 		    add    {PART <book> <file>}
 		}
 

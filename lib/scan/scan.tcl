@@ -78,7 +78,7 @@ proc ::bookflow::scan::TASK {projectdir} {
 	    Debug.bookflow/scan {  Image}
 	    set hasimages 1
 	    Log.bookflow {* Image            $fx}
-	    scoreboard put [list IMAGE $fx]
+	    scoreboard put [list FILE $fx]
 
 	} elseif {[bookflow::db isBookflow $f]} {
 	    Debug.bookflow/scan {  Project database found}

@@ -8,6 +8,7 @@
 # ### ### ### ######### ######### #########
 ## Requisites
 
+package uevent::onidle
 namespace eval ::scoreboard {}
 
 # ### ### ### ######### ######### #########
@@ -19,14 +20,22 @@ debug on     scoreboard
 # ### ### ### ######### ######### #########
 ## API & Implementation
 
-proc ::scoreboard::put {tuple} {
+proc ::scoreboard::put {args} {
     variable db
 
-    Debug.scoreboard {put <$tuple>}
+    if {![llength $args]} {
+	return -code error "wrong\#args: expected tuple..."
+    }
 
-    incr db($tuple)
-    Broadcast $tuple
+    Debug.scoreboard {put <[join $args ">\nput <"]>}
 
+    foreach tuple $args {
+	incr db($tuple)
+    }
+
+    # NOTE (optimization): Should tell Broadcast how many tuples were
+    # added. That many waiting 'take's can be released, at most.
+    Broadcast
     Debug.scoreboard {put/}
     return
 }
@@ -60,11 +69,31 @@ proc ::scoreboard::take {pattern cmd} {
     return
 }
 
+proc ::scoreboard::takeall {pattern cmd} {
+    variable db
+
+    Debug.scoreboard {takeall <$pattern>}
+
+    set matches [array names db $pattern]
+
+    Debug.scoreboard {  matches = [llength $matches]}
+
+    foreach tuple $matches {
+	Debug.scoreboard {  taken <$tuple>}
+	Remove $tuple
+    }
+
+    Call $cmd $matches
+
+    Debug.scoreboard {takeall/}
+    return
+}
+
 # ### ### ### ######### ######### #########
 ## Internals
 
-proc ::scoreboard::Return {thread cmd tuple} {
-    thread::send -async $thread [list {*}$cmd $tuple]
+proc ::scoreboard::Return {thread cmd args} {
+    thread::send -async $thread [list {*}$cmd {*}$args]
     return
 }
 
@@ -101,9 +130,9 @@ proc ::scoreboard::Broadcast {tuple} {
     return
 }
 
-proc ::scoreboard::Call {cmd tuple} {
-    Debug.scoreboard {    Call $cmd}
-    after idle [list after 1 [list {*}$cmd $tuple]]
+proc ::scoreboard::Call {cmd args} {
+    Debug.scoreboard {    Call $cmd ($args)}
+    after idle [list after 1 [list {*}$cmd {*}$args]]
     return
 }
 

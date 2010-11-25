@@ -1,0 +1,48 @@
+Scoreboard API
+==============
+
+put <tuple>...
+
+	Places the specified tuples into the scoreboard.
+	May return before the tuples are fully stored.
+	May release 'take' requests waiting on a pattern matching any of the tuples.
+	May trigger 'added' notifications for patterns matching the tuples.
+
+take <pattern> <cmd>
+
+	Asks the scoreboard to invoke <cmd> when a tuple matching the
+	<pattern> is present, with the matching tuple as argument.
+
+	At the time of invokation the tuple is removed from the
+	scoreboard.
+
+	Returns before <cmd> is invoked.
+
+	If no matching tuple is present the system will wait until
+	such a tuple exists. Possibly waiting indefinitely.
+
+	Multiple 'take' requests waiting on the exact same pattern are
+	served in the order of their arrival at the scoreboard.
+
+	Multiple 'take' requests with different patterns competing for
+	the same matching tuple are served in arbitrary order (Tcl's
+	order of 'array names'). This allows for live-lock to occur
+	where a 'take' request X is always pre-empted by different
+	requests, even if they there made after X itself.
+
+	May trigger 'removed' notifications for patterns matching the
+	taken tuple.
+
+takeall <pattern> <cmd>
+
+	Like 'take', with two differences.
+
+	It doesn't wait for matching tuples to be present.
+
+	If none are there <cmd> is invoked with the empty list.
+
+	If tuples match however then all of them are removed
+	from the scoreboard and given to <cmd>.
+
+	May trigger 'removed' notifications for patterns matching the
+	taken tuples.

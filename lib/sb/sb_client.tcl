@@ -17,7 +17,7 @@ namespace eval ::scoreboard {}
 # ### ### ### ######### ######### #########
 ## API & Implementation
 
-proc ::scoreboard::put {tuple} {
+proc ::scoreboard::put {args} {
     thread::send -async $::task::main [info level 0]
     return
 }
@@ -25,7 +25,15 @@ proc ::scoreboard::put {tuple} {
 proc ::scoreboard::take {pattern cmd} {
     set me [info level 0]
     set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
-    return [thread::send $::task::main $me]
+    thread::send -async $::task::main $me
+    return
+}
+
+proc ::scoreboard::takeall {pattern cmd} {
+    set me [info level 0]
+    set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
+    thread::send -async $::task::main $me
+    return
 }
 
 # ### ### ### ######### ######### #########

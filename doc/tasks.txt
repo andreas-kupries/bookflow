@@ -1,41 +1,152 @@
-Task Documentation.
+# -*- tcl -*-
+document {
+    description {
+	Task Documentation.
 
-Listing all tasks with the package implementing them, the
-pre-conditions, i.e. scoreboard contents (tuple existence), it
-triggers on, the results (new and removed tuples), again scoreboard
-contents, and additional scoreboard data which is accessed during the
-execution of the task.
+	Listing all tasks with the package implementing them, the
+	pre-conditions, i.e. scoreboard contents (tuple existence), it
+	triggers on, the results (new and removed tuples), again scoreboard
+	contents, and additional scoreboard data which is accessed during the
+	execution of the task.
+    }
 
-==============		============	============		===============		====================================================
-Name (Package)		Task		Conditions		Additional Data		Results				
---------------		------------	------------		---------------		----------------------------------------------------
-bookflow::scan		Scan project	n/a, initial		none			add	(AT <dir>)		always
-			directory for							add	(IMAGE <file>)		when found
-			the project							add	(DATABASE <file>)	when found
-			DB and images							add	(PROJECT VERIFY)	| completion marker
-			to process							add	(PROJECT CREATE)	| always exactly one
-											add	(PROJECT ERROR *)	| of these
---------------		------------	------------		---------------		----------------------------------------------------
-bookflow::error		Report an un-	(PROJECT ERROR *)	(AT *)			report error and exit.
-			usable project
-			directory to
-			the user.
---------------		------------	------------		---------------		----------------------------------------------------
-bookflow::create	Create the	(PROJECT *)
-			project data-	=> (PROJECT VERIFY)	none			put back, abort, none
-			base in the	=> (PROJECT ERROR *)	none			put back, abort, none
-			project		=> (PROJECT CREATE)	(AT *)			create BOOKFLOW database
-								(IMAGE *)		add    (BOOK <name> <...>)	| database contents.
-											add    (VIMAGE <file> ...)	|
-											add    (PART <book> <file>)	|
-											remove (IMAGE *)
---------------		------------	------------		---------------		----------------------------------------------------
-bookflow::verify	Load the data-	(PROJECT *)
-			base and check	=> (PROJECT CREATE)	none			put back, abort, none
-			its contents	=> (PROJECT ERROR *)	none			put back, abort, none
-			against the	=> (PROJECT VERIFY)	(AT *)			add    (PROJECT ERROR *)	| for inconsistencies
-			set of images				(IMAGE *)		add    (BOOK <name> <...>)	| verified database 
-			found by the							add    (VIMAGE <file> ...)	| contents.
-			scanner								add    (PART <book> <file>)	|
-											remove (IMAGE *)
-==============		============	============	===============		====================================================
+    task bookflow::scan {
+	description {
+	    Scan the project directory, locate the project database and the
+	    images to process. One shot task, exits after the scan is complete.
+	    Initial task. Automatically triggered.
+	}
+	thread
+	trigger {}
+	behavior {
+	    (1) {
+		action  { Scan directory for database, images}
+		output  {
+		    add	{AT <dir>}
+		}
+	    }
+	    (2) {
+		guard  { Neither images nor project database found }
+		output {
+		    add	{PROJECT ERROR *}
+		}
+	    }
+	    (3) {
+		guard  { Images found, but no project database }
+		output {
+		    add {IMAGE *}
+		    add	{PROJECT CREATE}
+		}
+	    }
+	    (4) {
+		guard  { Images and project database are found }
+		output {
+		    add {IMAGE *}
+		    add {DATABASE *}
+		    add	{PROJECT VERIFY}
+		}
+	    }
+	}
+    }
+
+    task bookflow::error {
+	description {
+	    Waits for other tasks to signal an error and reports it.
+	    Continuous task.
+	}
+	event
+	trigger {
+	    {PROJECT ERROR *}
+	}
+	behaviour {
+	    (1) {
+		action { Report the error held by the tuple }
+		output {}
+	    }
+	}
+    }
+
+    task bookflow::verify {
+	description {
+	    Load the database and check its contents against
+	    the set of images found by the scanner.
+	    One shot task, exits after the check is done.
+	}
+	thread
+	trigger {
+	    {PROJECT VERIFY}
+	}
+	behaviour {
+	    (1) {
+		action {
+		    {AT *}
+		    {DATABASE *}
+		    {IMAGE *}
+
+		    Open database, load set of images known to it.
+		    Get the set of found images.
+		    Compare for missing and additional images.
+		}
+	    }
+	    (2) {
+		guard {
+		    The set of images in the directory does not match
+		    the set of images in the project.
+		}
+		output {
+		    add {PROJECT ERROR *}
+		    NOTE { --- Allow corrective action by the user ? --- }
+		    NOTE { --- Auto-correction?
+			i.e. Ignore additional images
+			and. Mark missing images as such and ignore further.
+		    }
+		}
+	    }
+	    (3) {
+		guard {
+		    The set of images in the directory is consistent
+		    with the set of images in the project.
+		}
+		action {
+		}
+		output {
+		    remove {IMAGE *}
+		    add    {BOOK <name> <...>}
+		    add    {VIMAGE <file> ...}
+		    add    {PART <book> <file>}
+		}
+	    }
+	}
+    }
+
+    task bookflow::create {
+	description {
+	    Create a fresh project database in the project directory
+	    and populate it with the found images.
+	    One shot task, exits after the creation is done.
+	}
+	thread
+	trigger {
+	    {PROJECT CREATE}
+	}
+	behaviour {
+	    (1) {
+		action {
+		    {AT *}
+		    {DATABASE *}
+
+		    Get the set of found images.
+		    Open database, write images and basic status to it.
+		    Fill the scoreboard based on the information.
+		}
+		output {
+		    remove {IMAGE *}
+		    add    {BOOK <name> <...>}
+		    add    {VIMAGE <file> ...}
+		    add    {PART <book> <file>}
+		}
+
+	    }
+	}
+    }
+}

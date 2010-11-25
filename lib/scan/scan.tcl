@@ -114,7 +114,7 @@ proc ::bookflow::scan::TASK {projectdir} {
 	# situation. Signal the main controller to report on this.
 
 	Debug.bookflow/scan {Bookflow::Scan -> Nothing found}
-	scoreboard put {PROJECT EMPTY}
+	scoreboard put [list PROJECT ERROR "The chosen project directory $projectdir contains neither images to process, nor a bookflow database.\n\nNothing will be done."]
     }
 
     return

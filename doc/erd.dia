@@ -4,7 +4,7 @@ proc t {name script args} {
     block {
 	south
 	set fields [block {
-	    circle radius 1
+	    circle radius 1 fillcolor red color red
 	    eval $script
 	}]
 	box at [last block] \
@@ -45,33 +45,26 @@ proc d {rows} {
 
 south
 
-t global {
+t bookflow {
     f int dpi {}
 }
 
 move
 
 t book {
-    pk int bid {not null}
-    f string name {unique, not null}
+    pk int  bid  {not null, auto-increment}
+    f  text name {unique, not null}
 }
 
 east
 arrow <- bid above
 
-t bi {
-    f int bid    {not null}
-    f int iid    {not null}
-    f int serial {not null}
-    n "unique (iid, serial)"
-}
-
-arrow iid above
-
 set image [t image {
-    pk int    iid  {not null}
-    f  string path {not null, unique}
-    f  int    ord  {not null, unique}
+    pk int    iid  {not null, auto-increment}
+    f  text   path {not null, unique}
+    f  int    bid  {not null, references book}
+    f  int    ord  {not null}
+    n "unique (bid, ord)"
 }]
 
 east

@@ -15,8 +15,9 @@ package require blog            ; # End-user visible activity logging,
 package require widget::log     ; # and the display for it.
 package require widget::toolbar
 package require scoreboard
-package require bookflow::scan  ; # Task. Scan project directory for images and database
-package require bookflow::error ; # Task. Post error reports to the user.
+package require bookflow::scan   ; # Task. Scan project directory for images and database
+package require bookflow::error  ; # Task. Post error reports to the user.
+package require bookflow::create ; # Task. Create project database when missing and images available.
 
 namespace eval ::bookflow {}
 
@@ -55,6 +56,7 @@ proc ::bookflow::Start {arguments} {
 
     Log.bookflow {Project in $projectdir}
 
+    bookflow::create            ; # Watch for request to create new project database.
     bookflow::error             ; # Watch for error reports
     bookflow::scan $projectdir  ; # Scan project directory
 

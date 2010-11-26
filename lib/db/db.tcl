@@ -7,6 +7,7 @@
 ## Requisites
 
 package require debug
+package require debug::snit
 package require snit
 package require sqlite3
 
@@ -16,7 +17,7 @@ namespace eval ::bookflow::db {}
 ## Tracing
 
 #debug off    bookflow/db
-debug prefix bookflow/db {[debug::snit::call]}
+debug prefix bookflow/db {[::debug::snit::call]}
 debug on     bookflow/db
 
 # ### ### ### ######### ######### #########
@@ -147,6 +148,7 @@ snit::type ::bookflow::db {
 	    }] 0]
 
 	    # The new images is added behind the last-highest images.
+	    if {$ord eq {}} { set ord -1 }
 	    incr ord
 
 	    # And enter the image into the database.
@@ -159,6 +161,11 @@ snit::type ::bookflow::db {
     }
 
     ### Accessors and manipulators
+
+    # ### ### ### ######### ######### #########
+    ##
+
+    variable mydb ; # Handle of the sqlite database. Object command.
 
     ##
     # ### ### ### ######### ######### #########

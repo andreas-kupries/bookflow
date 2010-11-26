@@ -114,8 +114,8 @@ proc ::bookflow::create::FILES {db dbfile tuples} {
 	lassign $def _ jpeg
 	set serial [$db book extend @scratch $jpeg]
 
-	Debug.bookflow/create {                   IMAGE $jpeg $serial @scratch}
-	scoreboard put [list IMAGE $jpeg $serial @scratch]
+	Debug.bookflow/create {                   IMAGE $jpeg $serial @SCRATCH}
+	scoreboard put [list IMAGE $jpeg $serial @SCRATCH]
     }
 
     Debug.bookflow/create {Bookflow::Create FILES/}

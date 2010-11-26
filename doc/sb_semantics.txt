@@ -46,6 +46,12 @@ takeall <pattern> <cmd>
 	May trigger 'removed' notifications for patterns matching the
 	taken tuples.
 
+peek <pattern> <cmd>
+
+	Like 'takeall', except that the matching tuples are not
+	removed from the scoreboard. As such it will not generate
+	'take' notifications either.
+
 bind put  <pattern> <cmd>
 bind take <pattern> <cmd>
 

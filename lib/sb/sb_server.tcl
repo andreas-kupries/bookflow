@@ -30,7 +30,7 @@ proc ::scoreboard::put {args} {
 proc ::scoreboard::take {pattern cmd} {
     variable db
 
-    Debug.scoreboard {take <$pattern>}
+    Debug.scoreboard {take <$pattern> (($cmd))}
 
     set matches [array names db $pattern]
 
@@ -58,7 +58,7 @@ proc ::scoreboard::take {pattern cmd} {
 proc ::scoreboard::takeall {pattern cmd} {
     variable db
 
-    Debug.scoreboard {takeall <$pattern>}
+    Debug.scoreboard {takeall <$pattern> (($cmd))}
 
     set matches [array names db $pattern]
 
@@ -76,20 +76,43 @@ proc ::scoreboard::takeall {pattern cmd} {
     return
 }
 
+proc ::scoreboard::peek {pattern cmd} {
+    variable db
+
+    Debug.scoreboard {peek <$pattern> (($cmd))}
+
+    set matches [array names db $pattern]
+
+    Debug.scoreboard {  matches = [llength $matches]}
+
+    Call $cmd $matches
+
+    Debug.scoreboard {peek/}
+    return
+}
+
 namespace eval ::scoreboard::bind {
     namespace export put take
     namespace ensemble create
 }
 
 proc ::scoreboard::bind::put {pattern cmd} {
+    Debug.scoreboard {bind::put <$pattern> (($cmd))}
+
     variable ::scoreboard::eput
     lappend  eput [list $pattern $cmd]
+
+    Debug.scoreboard {bind::put/}
     return
 }
 
 proc ::scoreboard::bind::take {pattern cmd} {
+    Debug.scoreboard {bind::take <$pattern> (($cmd))}
+
     variable ::scoreboard::etake
     lappend  etake [list $pattern $cmd]
+
+    Debug.scoreboard {bind::take/}
     return
 }
 
@@ -99,20 +122,28 @@ namespace eval ::scoreboard::unbind {
 }
 
 proc ::scoreboard::unbind::put {pattern cmd} {
+    Debug.scoreboard {unbind::put <$pattern> (($cmd))}
+
     variable ::scoreboard::eput
     set k [list $pattern $cmd]
     set pos [lsearch -exact $eput $k]
     if {$pos < 0} return
     set eput [lreplace $eput $pos $pos]
+
+    Debug.scoreboard {unbind::put/}
     return
 }
 
 proc ::scoreboard::unbind::take {pattern cmd} {
+    Debug.scoreboard {unbind::take <$pattern> (($cmd))}
+
     variable ::scoreboard::etake
     set k [list $pattern $cmd]
     set pos [lsearch -exact $etake $k]
     if {$pos < 0} return
     set etake [lreplace $etake $pos $pos]
+
+    Debug.scoreboard {unbind::take/}
     return
 }
 

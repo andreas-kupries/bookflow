@@ -12,6 +12,7 @@
 ## Requisites
 
 package require debug
+package require blog
 package require task
 
 namespace eval ::bookflow::create {}
@@ -39,6 +40,8 @@ proc ::bookflow::create {} {
 proc ::bookflow::create::RUN {tuple} {
     Debug.bookflow/create {Bookflow::Create RUN}
 
+    Log.bookflow {Creating project database...}
+
     task launch [list ::apply {{} {
 	package require bookflow::create
 	bookflow::create::TASK
@@ -56,10 +59,8 @@ proc ::bookflow::create::TASK {} {
     debug on     bookflow/create
 
     # Requisites for the task
-    #package require blog
-    #package require jpeg
-    #package require fileutil
     package require scoreboard
+    package require bookflow::create
     package require bookflow::db
 
     scoreboard take {AT *} [namespace code BEGIN]
@@ -69,6 +70,8 @@ proc ::bookflow::create::TASK {} {
 }
 
 proc ::bookflow::create::BEGIN {tuple} {
+    variable defaultfile
+
     Debug.bookflow/create {Bookflow::Create BEGIN <$tuple>}
 
     # tuple = (AT *)
@@ -79,12 +82,13 @@ proc ::bookflow::create::BEGIN {tuple} {
     lassign $tuple _ projectdir
 
     # Create the empty database, and declare its presence
-    set dbfile [file join [file normalize $projectdir] BOOKFLOW]
+    set dbfile [file join [file normalize $projectdir] $defaultfile]
     set db     [bookflow::db new $dbfile]
 
-    scoreboard put {DATABASE BOOKFLOW}
+    Log.bookflow {% Project database $defaultfile}
+    scoreboard put [list DATABASE $defaultfile]
 
-    # Then fill it using the files found by the scanner.
+    # At last fill it using the image files found by the scanner.
     scoreboard takeall {FILE*} [namespace code [list FILES $db $dbfile]]
 
     Debug.bookflow/create {Bookflow::Create BEGIN/}
@@ -126,6 +130,10 @@ proc ::bookflow::create::FILES {db dbfile tuples} {
 namespace eval ::bookflow {
     namespace export create
     namespace ensemble create
+
+    namespace eval create {
+	variable defaultfile BOOKFLOW
+    }
 }
 
 # ### ### ### ######### ######### #########

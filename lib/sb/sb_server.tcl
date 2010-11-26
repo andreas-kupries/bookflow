@@ -33,9 +33,7 @@ proc ::scoreboard::put {args} {
 	incr db($tuple)
     }
 
-    # NOTE (optimization): Should tell Broadcast how many tuples were
-    # added. That many waiting 'take's can be released, at most.
-    Broadcast
+    Broadcast $args
     Debug.scoreboard {put/}
     return
 }
@@ -50,9 +48,7 @@ proc ::scoreboard::take {pattern cmd} {
     if {![llength $matches]} {
 	Debug.scoreboard {  no matches, defer response}
 
-	variable wait
-	lappend wait($pattern) $cmd
-
+	Wait $pattern $cmd
 	Debug.scoreboard {take/}
 	return
     }
@@ -104,29 +100,54 @@ proc ::scoreboard::Remove {tuple} {
     return
 }
 
-proc ::scoreboard::Broadcast {tuple} {
+proc ::scoreboard::Wait {pattern cmd} {
+    variable wait
+    lappend wait [list $pattern $cmd]
+    return
+}
+
+proc ::scoreboard::Broadcast {tuples} {
     variable wait
 
-    foreach pattern [array names wait] {
-	if {![string match $pattern $tuple]} continue
+    Debug.scoreboard {  Broadcast}
+
+    set stillwaiting {}
+    foreach item $wait {
+	# Quick bail out if all tuples have been broadcast.
+
+	if {![llength $tuples]} {
+	    lappend stillwaiting $item
+	    continue
+	}
+
+	# Bail if the pattern of the waiting request doesn't match any
+	# tuple.
+
+	lassign $item pattern cmd
+	set pos [lsearch -glob $tuples $pattern]
+	if {$pos < 0} {
+	    lappend stillwaiting $item
+	    continue
+	}
+
+	# This request matches and is now served.
+	# It doesn't go on the still-pending list.
+	# The tuple in question is removed.
 
 	Debug.scoreboard {  Broadcast : Match <$pattern>}
 
-	set remainder [lassign $wait($pattern) cmd]
-	if {![llength $remainder]} {
-	    unset wait($pattern)
-	} else {
-	    set wait($pattern) $remainder
-	}
+	set tuple  [lindex $tuples $pos]
+	set tuples [lreplace $tuples $pos $pos]
 
 	Debug.scoreboard {    taken <$tuple>}
 
 	Remove $tuple
 	Call $cmd $tuple
-	return
     }
 
-    Debug.scoreboard {  Broadcast : No matches}
+    set wait $stillwaiting
+
+    Debug.scoreboard {  Broadcast/}
     return
 }
 
@@ -140,8 +161,8 @@ proc ::scoreboard::Call {cmd args} {
 ## Ready
 
 namespace eval ::scoreboard {
-    variable db
-    variable wait
+    variable db   ; # tuple array: tuple -> count of instances
+    variable wait ; # list of pending 'take's.
 
     namespace export {[a-z]*}
     namespace ensemble create

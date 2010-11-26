@@ -21,14 +21,13 @@ take <pattern> <cmd>
 	If no matching tuple is present the system will wait until
 	such a tuple exists. Possibly waiting indefinitely.
 
-	Multiple 'take' requests waiting on the exact same pattern are
-	served in the order of their arrival at the scoreboard.
-
-	Multiple 'take' requests with different patterns competing for
-	the same matching tuple are served in arbitrary order (Tcl's
-	order of 'array names'). This allows for live-lock to occur
-	where a 'take' request X is always pre-empted by different
-	requests, even if they there made after X itself.
+	Multiple 'take' requests waiting on tuples are served in order
+	of arrival. I.e. the earliest request matching a tuple is
+	invoked, with the remainder waitng for the next tuple. As new
+	requests are adding to the end of this list each request R
+	will be served at some point if enough tuples matching its
+	pattern are added to the scoreboard. Matching requests coming
+	after R cannot pre-empt it.
 
 	May trigger 'removed' notifications for patterns matching the
 	taken tuple.

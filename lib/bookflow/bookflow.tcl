@@ -18,6 +18,7 @@ package require scoreboard
 package require bookflow::scan   ; # Task. Scan project directory for images and database
 package require bookflow::error  ; # Task. Post error reports to the user.
 package require bookflow::create ; # Task. Create project database when missing and images available.
+package require bookw            ; # Book Display
 
 namespace eval ::bookflow {}
 
@@ -68,11 +69,11 @@ proc ::bookflow::Start {arguments} {
 
 proc ::bookflow::Widgets {} {
     # Re-style the notebook to use left-side tab-buttons
-    ttk::style configure VerticalTabsLeft.TNotebook -tabposition w
+    ttk::style configure VerticalTabsLeft.TNotebook -tabposition wn
 
     widget::toolbar .toolbar
     ttk::notebook   .books -style VerticalTabsLeft.TNotebook
-    ::widget::log   .log
+    ::widget::log   .log -width 120
 
     .toolbar add button exit -text Exit -command ::exit -separator 1
     return
@@ -108,22 +109,12 @@ proc ::bookflow::BookNew {tuple} {
     set w .books.f$bookcounter
     incr bookcounter
 
-    ttk::frame $w
+    ::bookw $w $name scoreboard
     .books add $w -sticky nsew -text $name ; # TODO : -image book-icon -compound
 
     # Watch and react to scoreboard activity
     # Here: Update (shrink) the notebook when this book is removed.
     scoreboard bind take [list BOOK $name] [namespace code [list BookDel $w]]
-
-    # TODO :: Panel contents... - Megawidget ?
-
-    #::widget::chart    .chart
-    #::widget::imagerow .irow
-    #::widget::pages    .pages
-
-    #pack .chart   -side top    -fill both -expand 0
-    #pack .irow    -side top    -fill both -expand 0
-    #pack .pages   -side top    -fill both -expand 1
     return
 }
 

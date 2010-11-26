@@ -9,6 +9,7 @@
 package require Tcl 8.5
 package require Tk
 package require snit
+package require img::strip ; # Strip of thumbnail images at the top.
 
 # ### ### ### ######### ######### #########
 ## Tracing
@@ -39,17 +40,20 @@ snit::widgetadaptor ::bookw {
 
     method Widgets {} {
 	#::widget::chart    .chart
-	#::widget::imagerow .irow
+	img::strip $win.strip
 	#::widget::pages    .pages
+	return
     }
 
     method Layout {} {
 	#pack .chart   -side top    -fill both -expand 0
-	#pack .irow    -side top    -fill both -expand 0
+	pack $win.strip    -side top    -fill both -expand 0
 	#pack .pages   -side top    -fill both -expand 1
+	return
     }
 
     method Bindings {} {
+	return
     }
 
     # ### ### ### ######### ######### #########
@@ -66,3 +70,4 @@ snit::widgetadaptor ::bookw {
 ## Ready
 
 package provide bookw 0.1
+return

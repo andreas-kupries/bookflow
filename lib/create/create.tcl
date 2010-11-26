@@ -76,16 +76,16 @@ proc ::bookflow::create::BEGIN {tuple} {
     scoreboard put $tuple
 
     # Get the payload
-    lassign tuple _ projectdir
+    lassign $tuple _ projectdir
 
     # Create the empty database, and declare its presence
     set dbfile [file join [file normalize $projectdir] BOOKFLOW]
-    set db     [bookflow::db create $dbfile]
+    set db     [bookflow::db new $dbfile]
 
     scoreboard put {DATABASE BOOKFLOW}
 
     # Then fill it using the files found by the scanner.
-    scoreboard takeall {FILE*} [namespace code FILES $db $dbfile]
+    scoreboard takeall {FILE*} [namespace code [list FILES $db $dbfile]]
 
     Debug.bookflow/create {Bookflow::Create BEGIN/}
     return
@@ -93,7 +93,7 @@ proc ::bookflow::create::BEGIN {tuple} {
 
 proc ::bookflow::create::FILES {db dbfile tuples} {
     Debug.bookflow/create {Bookflow::Create FILES $db}
-    Debug.bookflow/create {                       $dbfile
+    Debug.bookflow/create {                       $dbfile}
     # tuples = list ((FILE *)...)
 
     # ... pull books out of the database and declare them ...

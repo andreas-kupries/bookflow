@@ -22,13 +22,16 @@ package require widget::scrolledwindow
 ## Implementation
 
 snit::widgetadaptor ::widget::log {
-    constructor {} {
+    delegate option * to mytext
+
+    constructor {args} {
 	installhull using widget::scrolledwindow \
 	    -borderwidth 1 -relief sunken
 
-	text $win.log -height 5 -width 80 -font {Helvetica -18}
-	$hull setwidget $win.log
+	set mytext [text $win.log -height 5 -width 80 -font {Helvetica -18}]
+	$hull setwidget $mytext
 
+	$self configurelist $args
 	return
     }
 
@@ -38,12 +41,17 @@ snit::widgetadaptor ::widget::log {
     }
 
     method puts* {text} {
-	$win.log configure -state normal
-	$win.log insert end $text
-	$win.log see end
-	$win.log configure -state disabled
+	$mytext configure -state normal
+	$mytext insert end $text
+	$mytext see end
+	$mytext configure -state disabled
 	return
     }
+
+    # ### ### ### ######### ######### #########
+    ##
+
+    variable mytext
 
     ##
     # ### ### ### ######### ######### #########

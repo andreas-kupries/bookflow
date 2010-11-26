@@ -2,6 +2,7 @@
 # ### ### ### ######### ######### #########
 
 # A simple log window where system activity can be shown to the end user.
+# Not specific to bookflow.
 
 # FUTURE expansion
 # Tagging of messages, allowing for customization of appearance (like
@@ -61,3 +62,4 @@ snit::widgetadaptor ::widget::log {
 ## Ready
 
 package provide widget::log 0.1
+return

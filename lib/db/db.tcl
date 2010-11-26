@@ -130,6 +130,34 @@ snit::type ::bookflow::db {
 
     # ### ### ### ######### ######### #########
 
+    method books {} {
+	return [$mydb eval { SELECT name FROM book }]
+    }
+
+    method {book extend} {book file} {
+	$mydb transaction {
+	    # Locate the named book, and retrieve its id.
+	    set bid [lindex [$mydb eval {
+		SELECT bid FROM book WHERE name = $book
+	    }] 0]
+
+	    # Get the last (= highest) ordering number for images in this book.
+	    set ord [lindex [$mydb eval {
+		SELECT MAX (ord) FROM image WHERE bid = $bid
+	    }] 0]
+
+	    # The new images is added behind the last-highest images.
+	    incr ord
+
+	    # And enter the image into the database.
+	    $mydb eval {
+		INSERT INTO image VALUES (NULL, $file, $bid, $ord)
+	    }
+	}
+
+	return $ord
+    }
+
     ### Accessors and manipulators
 
     ##

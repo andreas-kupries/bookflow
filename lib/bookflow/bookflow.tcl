@@ -67,11 +67,12 @@ proc ::bookflow::Start {arguments} {
 }
 
 proc ::bookflow::Widgets {} {
+    # Re-style the notebook to use left-side tab-buttons
+    ttk::style configure VerticalTabsLeft.TNotebook -tabposition w
+
     widget::toolbar .toolbar
-    #::widget::chart    .chart
-    #::widget::imagerow .irow
-    ::widget::log      .log
-    #::widget::pages    .pages
+    ttk::notebook   .books -style VerticalTabsLeft.TNotebook
+    ::widget::log   .log
 
     .toolbar add button exit -text Exit -command ::exit -separator 1
     return
@@ -79,9 +80,7 @@ proc ::bookflow::Widgets {} {
 
 proc ::bookflow::Layout {} {
     pack .toolbar -side top    -fill both -expand 0
-    #pack .chart   -side top    -fill both -expand 0
-    #pack .irow    -side top    -fill both -expand 0
-    #pack .pages   -side top    -fill both -expand 1
+    pack .books   -side top    -fill both -expand 1
     pack .log     -side bottom -fill both -expand 0
     return
 }
@@ -90,6 +89,49 @@ proc ::bookflow::Bindings {} {
     # Redirect log writing into the widget
     ::log on :: 0 .log
     ::log on bookflow
+
+    # Watch and react to scoreboard activity
+    # Here: Extend the notebook when new books are announced
+    scoreboard bind put  {BOOK *} [namespace code BookNew]
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+
+# TODO :: Analyse BookNew/Del for race conditions when a book B is
+# TODO :: rapidly added and removed multiple times.
+
+proc ::bookflow::BookNew {tuple} {
+    variable bookcounter
+    lassign $tuple _ name
+
+    set w .books.f$bookcounter
+    incr bookcounter
+
+    ttk::frame $w
+    .books add $w -sticky nsew -text $name ; # TODO : -image book-icon -compound
+
+    # Watch and react to scoreboard activity
+    # Here: Update (shrink) the notebook when this book is removed.
+    scoreboard bind take [list BOOK $name] [namespace code [list BookDel $w]]
+
+    # TODO :: Panel contents... - Megawidget ?
+
+    #::widget::chart    .chart
+    #::widget::imagerow .irow
+    #::widget::pages    .pages
+
+    #pack .chart   -side top    -fill both -expand 0
+    #pack .irow    -side top    -fill both -expand 0
+    #pack .pages   -side top    -fill both -expand 1
+    return
+}
+
+proc ::bookflow::BookDel {w tuple} {
+    # Drop the panel from the notebook, and remove the binding which invoked us.
+    .books forget $w
+    destroy $w
+    scoreboard unbind take [list BOOK $name] [namespace code [list BookDel $w]]
     return
 }
 
@@ -99,6 +141,8 @@ proc ::bookflow::Bindings {} {
 namespace eval ::bookflow {
     namespace export {[a-z]*}
     namespace ensemble create
+
+    variable bookcounter 0
 }
 
 package provide bookflow 1.0

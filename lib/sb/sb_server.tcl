@@ -8,7 +8,6 @@
 # ### ### ### ######### ######### #########
 ## Requisites
 
-package uevent::onidle
 namespace eval ::scoreboard {}
 
 # ### ### ### ######### ######### #########

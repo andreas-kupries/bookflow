@@ -45,3 +45,20 @@ takeall <pattern> <cmd>
 
 	May trigger 'removed' notifications for patterns matching the
 	taken tuples.
+
+bind put  <pattern> <cmd>
+bind take <pattern> <cmd>
+
+	These methods bind a <cmd> callback to a particular action
+	(put/take) and tuple <pattern>. Each occurence of the action
+	for a tuple matching the pattern causes an invokation of the
+	callback.
+
+	The contents of the scoreboard are not modified.
+
+	In this manner it is possible to wait for a tuple to appear,
+	like 'take', but without actually removing the tuple.
+
+	Note that if a tuple is added via 'put' and immediately
+	'take'n two notifications may be generation, for both the
+	'put', and the 'take', in this order.

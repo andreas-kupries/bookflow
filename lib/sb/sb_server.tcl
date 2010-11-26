@@ -30,6 +30,7 @@ proc ::scoreboard::put {args} {
 
     foreach tuple $args {
 	incr db($tuple)
+	NotifyPut $tuple
     }
 
     Broadcast $args
@@ -58,6 +59,7 @@ proc ::scoreboard::take {pattern cmd} {
     Debug.scoreboard {  taken <$tuple>}
 
     Remove $tuple
+    NotifyTake $tuple
     Call $cmd $tuple
 
     Debug.scoreboard {take/}
@@ -76,11 +78,52 @@ proc ::scoreboard::takeall {pattern cmd} {
     foreach tuple $matches {
 	Debug.scoreboard {  taken <$tuple>}
 	Remove $tuple
+	NotifyTake $tuple
     }
 
     Call $cmd $matches
 
     Debug.scoreboard {takeall/}
+    return
+}
+
+namespace eval ::scoreboard::bind {
+    namespace export put take
+    namespace ensemble create
+}
+
+proc ::scoreboard::bind::put {pattern cmd} {
+    variable ::scoreboard::eput
+    lappend  eput [list $pattern $cmd]
+    return
+}
+
+proc ::scoreboard::bind::take {pattern cmd} {
+    variable ::scoreboard::etake
+    lappend  etake [list $pattern $cmd]
+    return
+}
+
+namespace eval ::scoreboard::unbind {
+    namespace export put take
+    namespace ensemble create
+}
+
+proc ::scoreboard::unbind::put {pattern cmd} {
+    variable ::scoreboard::eput
+    set k [list $pattern $cmd]
+    set pos [lsearch -exact $eput $k]
+    if {$pos < 0} return
+    set eput [lreplace $eput $pos $pos]
+    return
+}
+
+proc ::scoreboard::unbind::take {pattern cmd} {
+    variable ::scoreboard::etake
+    set k [list $pattern $cmd]
+    set pos [lsearch -exact $etake $k]
+    if {$pos < 0} return
+    set etake [lreplace $etake $pos $pos]
     return
 }
 
@@ -101,7 +144,7 @@ proc ::scoreboard::Remove {tuple} {
 
 proc ::scoreboard::Wait {pattern cmd} {
     variable wait
-    lappend wait [list $pattern $cmd]
+    lappend  wait [list $pattern $cmd]
     return
 }
 
@@ -156,12 +199,42 @@ proc ::scoreboard::Call {cmd args} {
     return
 }
 
+proc ::scoreboard::NotifyPut {tuple} {
+    Debug.scoreboard {  Notify Put}
+
+    variable eput
+    foreach item $eput {
+	lassign $item p c
+	if {![string match $p $tuple]} continue
+	Call $c $tuple
+    }
+
+    Debug.scoreboard {  Notify Put/}
+    return
+}
+
+proc ::scoreboard::NotifyTake {tuple} {
+    Debug.scoreboard {  Notify Take}
+
+    variable etake
+    foreach item $etake {
+	lassign $item p c
+	if {![string match $p $tuple]} continue
+	Call $c $tuple
+    }
+
+    Debug.scoreboard {  Notify Take/}
+    return
+}
+
 # ### ### ### ######### ######### #########
 ## Ready
 
 namespace eval ::scoreboard {
-    variable db   ; # tuple array: tuple -> count of instances
-    variable wait ; # list of pending 'take's.
+    variable db       ; # tuple array: tuple -> count of instances
+    variable wait  {} ; # list of pending 'take's.
+    variable eput  {} ; # list of bindings on put
+    variable etake {} ; # list of bindings on take
 
     namespace export {[a-z]*}
     namespace ensemble create

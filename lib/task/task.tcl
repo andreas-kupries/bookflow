@@ -73,3 +73,4 @@ namespace eval ::task {
 ## Ready
 
 package provide task::thread 0.1
+return

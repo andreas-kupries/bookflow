@@ -5,9 +5,14 @@
 ## method calls.
 
 # ### ### ### ######### ######### #########
-##
+## Requisites
+
+package require Tcl 8.5
 
 namespace eval ::debug::snit {}
+
+# ### ### ### ######### ######### #########
+## API & Implementation
 
 proc ::debug::snit::call {} {
     # For snit (type)methods, rework the command line to be more

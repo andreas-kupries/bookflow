@@ -6,17 +6,6 @@
 # other. Actually a tuple-space with a bit of dressing disguising it.
 
 # ### ### ### ######### ######### #########
-## Requisites
-
-namespace eval ::scoreboard {}
-
-# ### ### ### ######### ######### #########
-## Tracing
-
-#debug off    scoreboard
-debug on     scoreboard
-
-# ### ### ### ######### ######### #########
 ## API & Implementation
 
 proc ::scoreboard::put {args} {

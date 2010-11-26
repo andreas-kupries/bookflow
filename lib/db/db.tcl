@@ -175,3 +175,4 @@ snit::type ::bookflow::db {
 ## Ready
 
 package provide bookflow::db 0.1
+return

@@ -6,12 +6,22 @@
 # other. Actually a tuple-space with a bit of dressing disguising it.
 
 # ### ### ### ######### ######### #########
+## Requisites
+
+package require Tcl 8.5
+namespace eval ::scoreboard {}
+
+# ### ### ### ######### ######### #########
+## Tracing
+
+#debug off    scoreboard
+debug on     scoreboard
+
+# ### ### ### ######### ######### #########
 ##
 
 # The code here checks wether the package is running in the main
 # thread or a task thread, and loads the associated implementation.
-
-namespace eval ::scoreboard {}
 
 ::apply {{here} {
     if {![info exists ::task::type]} {
@@ -33,3 +43,4 @@ namespace eval ::scoreboard {}
 ## Ready
 
 package provide scoreboard 0.1
+return

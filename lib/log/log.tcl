@@ -15,10 +15,18 @@
 # (currently only stderr is used.  there is some complexity in efficient
 # cross-threaded streams.)
 
+# ### ### ### ######### ######### #########
+## Requisites
+
+package require Tcl 8.5
 package require debug
-debug off log
 
 namespace eval ::log {}
+
+debug off log
+
+# ### ### ### ######### ######### #########
+## API & Implementation
 
 proc ::log::noop {args} {}
 
@@ -277,3 +285,4 @@ namespace eval ::log {
 ## Ready
 
 package provide blog 1.0
+return

@@ -52,3 +52,4 @@ namespace eval ::bookflow {
 ## Ready
 
 package provide bookflow::error 0.1
+return

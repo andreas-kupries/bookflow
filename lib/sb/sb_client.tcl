@@ -7,14 +7,6 @@
 # arguments to handle the proper back and forth for callbacks.
 
 # ### ### ### ######### ######### #########
-## Requisites
-
-namespace eval ::scoreboard {}
-
-# ### ### ### ######### ######### #########
-## Tracing
-
-# ### ### ### ######### ######### #########
 ## API & Implementation
 
 proc ::scoreboard::put {args} {

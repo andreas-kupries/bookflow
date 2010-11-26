@@ -12,9 +12,15 @@
 # (currently only stderr is used.  there is some complexity in efficient
 # cross-threaded streams.)
 
-package provide debug 1.0
+# ### ### ### ######### ######### #########
+## Requisites
 
-namespace eval debug {}
+package require Tcl 8.5
+
+namespace eval ::debug {}
+
+# ### ### ### ######### ######### #########
+## API & Implementation
 
 proc ::debug::noop {args} {}
 
@@ -144,3 +150,9 @@ namespace eval debug {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+
+# ### ### ### ######### ######### #########
+## Ready
+
+package provide debug 1.0
+return

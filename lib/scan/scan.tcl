@@ -133,3 +133,4 @@ namespace eval ::bookflow {
 ## Ready
 
 package provide bookflow::scan 0.1
+return

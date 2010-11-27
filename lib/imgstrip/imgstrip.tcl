@@ -46,8 +46,6 @@ snit::widgetadaptor ::img::strip {
 	Debug.img/strip {}
 	installhull using widget::scrolledwindow -borderwidth 1 -relief sunken
 
-	set mywidth [expr {$oursize + 2*(2+$ourgap)}]
-
 	#install myselchanged using uevent::onidle ${selfns}::SC [mymethod SelectionChanged]
 
 	$self Widgets
@@ -58,6 +56,82 @@ snit::widgetadaptor ::img::strip {
 	$self STYLE
 
 	$self configurelist $args
+	return
+    }
+
+    # Add an empty image to the widget. Displayed, but without text or
+    # image until such are configured. Returns a token to address the
+    # item with.
+
+    method new {} {
+	Debug.img/strip {}
+
+	set newitem [$mytree item create]
+	$mytree item lastchild 0 $newitem
+	$mytree item configure   $newitem -button 0
+	$mytree item configure   $newitem -visible 1
+	$mytree item style set   $newitem 0 STYLE
+	$mytree collapse         $newitem
+	$self Resort
+	$self DetermineHeight
+	$self DetermineWidth
+
+	Debug.img/strip {/}
+	return $newitem
+    }
+
+    method drop {token} {
+	Debug.img/strip {}
+
+	$mytree item delete $token
+	# Note: Resorting not needed, the other images are staying in
+	# their proper order.
+
+	Debug.img/strip {/}
+	return
+    }
+
+    method itemconfigure {token args} {
+	foreach {option value} $args {
+	    $self ItemConfigure $option $token $value
+	}
+	return
+    }
+
+    method {ItemConfigure -message} {token string} {
+	Debug.img/strip {message ==> '$string'}
+
+	$mytree item element configure $token 0 eText -text  $string
+
+	Debug.img/strip {/}
+	return
+    }
+
+    method {ItemConfigure -label} {token string} {
+	Debug.img/strip {label ==> '$string'}
+
+	$mytree item element configure $token 0 eLabel -text $string
+
+	Debug.img/strip {/}
+	return
+    }
+
+    method {ItemConfigure -order} {token string} {
+	Debug.img/strip {ordering ==> '$string'}
+
+	$mytree item element configure $token 0 eSerial -text $string
+	$self Resort
+
+	Debug.img/strip {/}
+	return
+    }
+
+    method {ItemConfigure -image} {token photo} {
+	Debug.img/strip {image ==> $photo}
+
+	$mytree item element configure $token 0 eImage -image $photo
+
+	Debug.img/strip {/}
 	return
     }
 
@@ -87,8 +161,7 @@ snit::widgetadaptor ::img::strip {
 	    -showheader   no \
 	    -scrollmargin 16 \
 	    -xscrolldelay {500 50} \
-	    -yscrolldelay {500 50} \
-	    -itemwidth    $mywidth
+	    -yscrolldelay {500 50}
 	return
     }
 
@@ -108,12 +181,12 @@ snit::widgetadaptor ::img::strip {
 
 	bindtags $mytree [list $mytree TreeCtrl [winfo toplevel $mytree] all]
 
-	$mytree notify bind $mytree <ActiveItem> [mymethod ChangeActiveItem %p %c]
-	$mytree notify bind $mytree <Selection>  [mymethod Selection]
+	#$mytree notify bind $mytree <ActiveItem> [mymethod ChangeActiveItem %p %c]
+	#$mytree notify bind $mytree <Selection>  [mymethod Selection]
 
-	bind $mytree <Double-1> [mymethod Action        %x %y]
-	bind $mytree <3>        [mymethod Context %X %Y %x %y]
-	bind $win    <FocusIn>  [mymethod Focus]
+	#bind $mytree <Double-1> [mymethod Action        %x %y]
+	#bind $mytree <3>        [mymethod Context %X %Y %x %y]
+	#bind $win    <FocusIn>  [mymethod Focus]
 
 	$mytree column create
 	return
@@ -131,6 +204,8 @@ snit::widgetadaptor ::img::strip {
 	# eLabel  : Textual label for the image.
 	# eFrame  : Square rectangle around the image.
 	# eShadow : A small drop shadow around eFrame.
+	# eSerial : INVISIBLE text whose contents determine display order. I.e.
+	#           this one is used to sort the items.
 	# ------------------------------------------------------------------------
 
 	$mytree element create eImage  image -image {} -width $oursize -height $oursize
@@ -139,17 +214,19 @@ snit::widgetadaptor ::img::strip {
 	$mytree element create eFrame  rect -outlinewidth 1 -fill $ourfillcolor -outline $ouroutlinecolor
 	$mytree element create eShadow rect -outlinewidth 2 -fill $ourfillcolor -outline gray \
 	    -open wn -showfocus 1
+	$mytree element create eSerial text -text {}
 
 	$mytree style create   STYLE -orient vertical
-	$mytree style elements STYLE {eShadow eLabel eFrame eImage eText}
+	$mytree style elements STYLE {eShadow eLabel eFrame eImage eText eSerial}
 
-	$mytree style layout   STYLE eLabel  -ipady {2 0} -expand we ;#-squeeze x
+	$mytree style layout   STYLE eLabel  -ipady {2 0} -expand we
 	$mytree style layout   STYLE eFrame  -union { eImage eText }
 	$mytree style layout   STYLE eImage  -ipady $ourgap -ipadx $ourgap -expand swen
 	$mytree style layout   STYLE eShadow -padx {1 2} -pady {1 2} -iexpand xy -detach yes
 
 	#$mytree style layout STYLE eLabel -visible 1
 	#$mytree style layout STYLE eImage -visible 1
+	$mytree style layout STYLE eSerial -visible 0
 
 	TreeCtrl::SetSensitive $mytree { {0 STYLE eShadow eLabel eFrame eImage eText} }
 	TreeCtrl::SetEditable  $mytree { {0 STYLE} }
@@ -162,6 +239,13 @@ snit::widgetadaptor ::img::strip {
 		 TreeCtrl \
 		 [winfo toplevel $mytree] \
 		 all]
+	return
+    }
+
+    method Resort {} {
+	# Regenerate the display order of items.
+	# We sort them by the third text element, the invisible "eSerial".
+	$mytree item sort 0 -dict -element eSerial
 	return
     }
 
@@ -183,18 +267,70 @@ snit::widgetadaptor ::img::strip {
     method S-orient {value} {
 	switch -exact -- $value {
 	    horizontal {
-		# Tree is horizontal, wrapping occurs at right edge
-		# of window, each item is as wide as mywidth
-		$mytree configure -orient horizontal -wrap window
-		$mytree column configure 0 -width 300
+
+		# Tree is horizontal, no wrapping is done.
+
+		# Each item is as high as myheight (to be determined
+		# after first item added).
+
+		# Indirectly derived from 'oursize', the w/h given to
+		# the eImage element.
+
+		# FUTURE: Pull this out of the actual image configured
+		# for the first item (max of all maybe ?)
+
+		$mytree configure -orient horizontal -wrap {}
+		$hull configure -scrollbar horizontal -auto horizontal
+		$self DetermineHeight
 	    }
 	    vertical {
-		# Tree is vertical, no wrapping, column is forced to
-		# item width, as the items don't do it for -wrap {}
+		# Tree is vertical, no wrapping is done.
+
+		# Each item is as wide as mywidth (to be determined
+		# after first item added).
+
+		# Indirectly derived from 'oursize', the w/h given to
+		# the eImage element.
+
+		# FUTURE: Pull this out of the actual image configured
+		# for the first item (max of all maybe ?)
+
 		$mytree configure -orient vertical -wrap {}
-		$mytree column configure 0 -width $mywidth
+		$hull configure -scrollbar vertical -auto vertical
+		$self DetermineWidth
 	    }
 	}
+	return
+    }
+
+    method DetermineHeight {} {
+	if {![info exists options(-orientation)]} return
+	if {$options(-orientation) ne "horizontal"} return
+	if {$myheight eq {}} {
+	    set items [$mytree item children 0]
+	    if {![llength $items]} return
+
+	    lassign [$mytree item bbox [lindex $items 0]] _ _ _ myheight
+	    incr myheight 40
+	}
+
+	$mytree configure -height $myheight -width 0
+	return
+    }
+
+    method DetermineWidth {} {
+	if {![info exists options(-orientation)]} return
+	if {$options(-orientation) ne "vertical"} return
+	if {$mywidth eq {}} {
+	    set items [$mytree item children 0]
+	    if {![llength $items]} return
+
+	    lassign [$mytree item bbox [lindex $items 0]] _ _ mywidth _
+	    #incr mywidth 40
+	}
+
+	#$mytree column configure 0 -width $mywidth
+	$mytree configure -width $mywidth -height 0
 	return
     }
 
@@ -205,7 +341,8 @@ snit::widgetadaptor ::img::strip {
     variable myitem  -array {} ; # image -> item
     variable myimage -array {} ; # item -> image
     variable mydata  -array {} ; # item -> list (type, data), type in {photo,text}
-    variable mywidth {}
+    variable mywidth  {} ; # Strip width, derived from first image
+    variable myheight {} ; # Strip height, derived from first image
     variable mydefer 0
 
     variable  myselection  {}    ; # Set of currently selected images.

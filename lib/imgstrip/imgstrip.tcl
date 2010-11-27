@@ -99,7 +99,7 @@ snit::widgetadaptor ::img::strip {
     }
 
     method {ItemConfigure -message} {token string} {
-	Debug.img/strip {message ==> '$string'}
+	Debug.img/strip {}
 
 	$mytree item element configure $token 0 eText -text  $string
 
@@ -108,7 +108,7 @@ snit::widgetadaptor ::img::strip {
     }
 
     method {ItemConfigure -label} {token string} {
-	Debug.img/strip {label ==> '$string'}
+	Debug.img/strip {}
 
 	$mytree item element configure $token 0 eLabel -text $string
 
@@ -117,7 +117,7 @@ snit::widgetadaptor ::img::strip {
     }
 
     method {ItemConfigure -order} {token string} {
-	Debug.img/strip {ordering ==> '$string'}
+	Debug.img/strip {}
 
 	$mytree item element configure $token 0 eSerial -text $string
 	$self Resort
@@ -127,12 +127,52 @@ snit::widgetadaptor ::img::strip {
     }
 
     method {ItemConfigure -image} {token photo} {
-	Debug.img/strip {image ==> $photo}
+	Debug.img/strip {}
 
 	$mytree item element configure $token 0 eImage -image $photo
 
 	Debug.img/strip {/}
 	return
+    }
+
+    method itemcget {token option} {
+	return [$self ItemCget $option $token]
+    }
+
+    method {ItemCget -message} {token} {
+	Debug.img/strip {}
+
+	set res [$mytree item element cget $token 0 eText -text]
+
+	Debug.img/strip {= $res /}
+	return $res
+    }
+
+    method {ItemCget -label} {token} {
+	Debug.img/strip {}
+
+	set res [$mytree item element cget $token 0 eLabel -text]
+
+	Debug.img/strip {= $res /}
+	return $res
+    }
+
+    method {ItemCget -order} {token} {
+	Debug.img/strip {}
+
+	set res [$mytree item element cget $token 0 eSerial -text]
+
+	Debug.img/strip {= $res /}
+	return $res
+    }
+
+    method {ItemCget -image} {token} {
+	Debug.img/strip {}
+
+	set res [$mytree item element cget $token 0 eImage -image]
+
+	Debug.img/strip {= $res /}
+	return $res
     }
 
     # ### ### ### ######### ######### #########

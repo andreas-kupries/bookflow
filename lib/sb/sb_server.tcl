@@ -37,7 +37,7 @@ proc ::scoreboard::take {pattern cmd} {
     if {![llength $matches]} {
 	Debug.scoreboard {  no matches, defer response}
 
-	Wait $pattern $cmd
+	Wait take $pattern $cmd
 	Debug.scoreboard {take/}
 	return
     }
@@ -91,11 +91,37 @@ proc ::scoreboard::peek {pattern cmd} {
     return
 }
 
+proc ::scoreboard::wpeek {pattern cmd} {
+    variable db
+
+    Debug.scoreboard {wpeek <$pattern> (($cmd))}
+
+    set matches [array names db $pattern]
+
+    if {![llength $matches]} {
+	Debug.scoreboard {  no matches, defer response}
+
+	Wait peek $pattern $cmd
+	Debug.scoreboard {wpeek/}
+	return
+    }
+
+    set tuple [lindex $matches 0]
+
+    Debug.scoreboard {  matches = [llength $matches]}
+    Debug.scoreboard {  peeked <$tuple>}
+
+    Call $cmd $tuple
+
+    Debug.scoreboard {wpeek/}
+    return
+}
+
 proc ::scoreboard::bind {event pattern cmd} {
     Debug.scoreboard {bind::$event <$pattern> (($cmd))}
 
-    if {$event ni {put take}} {
-	return -code error "Bad event \"$event\", expected one of put, or take"
+    if {$event ni {put take missing}} {
+	return -code error "Bad event \"$event\", expected one of missing, put, or take"
     }
 
     variable bind
@@ -108,8 +134,8 @@ proc ::scoreboard::bind {event pattern cmd} {
 proc ::scoreboard::unbind {event pattern cmd} {
     Debug.scoreboard {unbind::$event <$pattern> (($cmd))}
 
-    if {$event ni {put take}} {
-	return -code error "Bad event \"$event\", expected one of put, or take"
+    if {$event ni {put take missing}} {
+	return -code error "Bad event \"$event\", expected one of missing, put, or take"
     }
 
     variable bind
@@ -137,9 +163,11 @@ proc ::scoreboard::Remove {tuple} {
     return
 }
 
-proc ::scoreboard::Wait {pattern cmd} {
+proc ::scoreboard::Wait {action pattern cmd} {
     variable wait
-    lappend  wait [list $pattern $cmd]
+    lappend  wait [list $action $pattern $cmd]
+
+    Notify missing $pattern
     return
 }
 
@@ -160,7 +188,7 @@ proc ::scoreboard::Broadcast {tuples} {
 	# Bail if the pattern of the waiting request doesn't match any
 	# tuple.
 
-	lassign $item pattern cmd
+	lassign $item action pattern cmd
 	set pos [lsearch -glob $tuples $pattern]
 	if {$pos < 0} {
 	    lappend stillwaiting $item
@@ -168,16 +196,21 @@ proc ::scoreboard::Broadcast {tuples} {
 	}
 
 	# This request matches and is now served. It doesn't go on the
-	# still-pending list. The tuple in question is removed
+	# still-pending list. The tuple in question is removed, if and
+	# only if the action was 'take'.
 
 	Debug.scoreboard {  Broadcast : Match <$pattern>}
 
-	set tuple  [lindex $tuples $pos]
-	set tuples [lreplace $tuples $pos $pos]
+	if {$action eq "take"} {
+	    set tuple  [lindex $tuples $pos]
+	    set tuples [lreplace $tuples $pos $pos]
 
-	Debug.scoreboard {    taken <$tuple>}
+	    Debug.scoreboard {    taken <$tuple>}
 
-	Remove $tuple
+	    Remove $tuple
+	} else {
+	    Debug.scoreboard {    peeked <$tuple>}
+	}
 	Call $cmd $tuple
     }
 
@@ -216,6 +249,7 @@ namespace eval ::scoreboard {
 
     variable  bind    ; # List of bindings per event-type. Initially empty.
     array set bind {
+	missing {}
 	put     {}
 	take    {}
     }

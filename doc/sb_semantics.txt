@@ -29,8 +29,11 @@ take <pattern> <cmd>
 	pattern are added to the scoreboard. Matching requests coming
 	after R cannot pre-empt it.
 
-	May trigger 'removed' notifications for patterns matching the
+	May trigger 'removed' notifications, for patterns matching the
 	taken tuple.
+
+	May trigger 'missing' notifications, for patterns not matching
+	a tuple at the time of the request.
 
 takeall <pattern> <cmd>
 
@@ -52,8 +55,17 @@ peek <pattern> <cmd>
 	removed from the scoreboard. As such it will not generate
 	'take' notifications either.
 
-bind put  <pattern> <cmd>
-bind take <pattern> <cmd>
+wpeek <pattern> <cmd>
+
+	The 'waiting peek' is like peek in that it doesn't remove a
+	tuple matching the pattern. It is however like 'take', waiting
+	for the appearance of a matching tuple is no such is present
+	when the request is made.
+
+
+bind put     <pattern> <cmd>
+bind take    <pattern> <cmd>
+bind missing <pattern> <cmd>
 
 	These methods bind a <cmd> callback to a particular action
 	(put/take) and tuple <pattern>. Each occurence of the action
@@ -68,3 +80,11 @@ bind take <pattern> <cmd>
 	Note that if a tuple is added via 'put' and immediately
 	'take'n two notifications may be generation, for both the
 	'put', and the 'take', in this order.
+
+	The 'missing' event is invoked if a 'take' or 'wpeek' had to
+	wait for a matching tuple, and the pattern, treated as tuple,
+	matched the pattern for the event.
+
+unbind ...
+
+	Remove event bindings.

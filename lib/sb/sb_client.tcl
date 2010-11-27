@@ -35,6 +35,13 @@ proc ::scoreboard::peek {pattern cmd} {
     return
 }
 
+proc ::scoreboard::wpeek {pattern cmd} {
+    set me [info level 0]
+    set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
+    thread::send -async $::task::main $me
+    return
+}
+
 proc ::scoreboard::bind {event pattern cmd} {
     set me [info level 0]
     set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]

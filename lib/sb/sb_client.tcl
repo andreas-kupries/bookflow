@@ -35,38 +35,14 @@ proc ::scoreboard::peek {pattern cmd} {
     return
 }
 
-namespace eval ::scoreboard::bind {
-    namespace export put take
-    namespace ensemble create
-}
-
-proc ::scoreboard::bind::put {pattern cmd} {
+proc ::scoreboard::bind {event pattern cmd} {
     set me [info level 0]
     set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
     thread::send -async $::task::main $me
     return
 }
 
-proc ::scoreboard::bind::take {pattern cmd} {
-    set me [info level 0]
-    set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
-    thread::send -async $::task::main $me
-    return
-}
-
-namespace eval ::scoreboard::unbind {
-    namespace export put take
-    namespace ensemble create
-}
-
-proc ::scoreboard::unbind::put {pattern cmd} {
-    set me [info level 0]
-    set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
-    thread::send -async $::task::main $me
-    return
-}
-
-proc ::scoreboard::unbind::take {pattern cmd} {
+proc ::scoreboard::unbind {event pattern cmd} {
     set me [info level 0]
     set me [lreplace $me end end [list ::scoreboard::Return [thread::id] [lindex $me end]]]
     thread::send -async $::task::main $me

@@ -19,7 +19,7 @@ proc ::scoreboard::put {args} {
 
     foreach tuple $args {
 	incr db($tuple)
-	NotifyPut $tuple
+	Notify put $tuple
     }
 
     Broadcast $args
@@ -48,7 +48,7 @@ proc ::scoreboard::take {pattern cmd} {
     Debug.scoreboard {  taken <$tuple>}
 
     Remove $tuple
-    NotifyTake $tuple
+    Notify take $tuple
     Call $cmd $tuple
 
     Debug.scoreboard {take/}
@@ -67,7 +67,7 @@ proc ::scoreboard::takeall {pattern cmd} {
     foreach tuple $matches {
 	Debug.scoreboard {  taken <$tuple>}
 	Remove $tuple
-	NotifyTake $tuple
+	Notify take $tuple
     }
 
     Call $cmd $matches
@@ -91,59 +91,34 @@ proc ::scoreboard::peek {pattern cmd} {
     return
 }
 
-namespace eval ::scoreboard::bind {
-    namespace export put take
-    namespace ensemble create
-}
+proc ::scoreboard::bind {event pattern cmd} {
+    Debug.scoreboard {bind::$event <$pattern> (($cmd))}
 
-proc ::scoreboard::bind::put {pattern cmd} {
-    Debug.scoreboard {bind::put <$pattern> (($cmd))}
+    if {$event ni {put take}} {
+	return -code error "Bad event \"$event\", expected one of put, or take"
+    }
 
-    variable ::scoreboard::eput
-    lappend  eput [list $pattern $cmd]
+    variable bind
+    lappend  bind($event) [list $pattern $cmd]
 
-    Debug.scoreboard {bind::put/}
+    Debug.scoreboard {bind::$event/}
     return
 }
 
-proc ::scoreboard::bind::take {pattern cmd} {
-    Debug.scoreboard {bind::take <$pattern> (($cmd))}
+proc ::scoreboard::unbind {event pattern cmd} {
+    Debug.scoreboard {unbind::$event <$pattern> (($cmd))}
 
-    variable ::scoreboard::etake
-    lappend  etake [list $pattern $cmd]
+    if {$event ni {put take}} {
+	return -code error "Bad event \"$event\", expected one of put, or take"
+    }
 
-    Debug.scoreboard {bind::take/}
-    return
-}
-
-namespace eval ::scoreboard::unbind {
-    namespace export put take
-    namespace ensemble create
-}
-
-proc ::scoreboard::unbind::put {pattern cmd} {
-    Debug.scoreboard {unbind::put <$pattern> (($cmd))}
-
-    variable ::scoreboard::eput
+    variable bind
     set k [list $pattern $cmd]
-    set pos [lsearch -exact $eput $k]
+    set pos [lsearch -exact $bind($event) $k]
     if {$pos < 0} return
-    set eput [lreplace $eput $pos $pos]
+    set bind($event) [lreplace $bind($event) $pos $pos]
 
-    Debug.scoreboard {unbind::put/}
-    return
-}
-
-proc ::scoreboard::unbind::take {pattern cmd} {
-    Debug.scoreboard {unbind::take <$pattern> (($cmd))}
-
-    variable ::scoreboard::etake
-    set k [list $pattern $cmd]
-    set pos [lsearch -exact $etake $k]
-    if {$pos < 0} return
-    set etake [lreplace $etake $pos $pos]
-
-    Debug.scoreboard {unbind::take/}
+    Debug.scoreboard {unbind::$event/}
     return
 }
 
@@ -192,9 +167,8 @@ proc ::scoreboard::Broadcast {tuples} {
 	    continue
 	}
 
-	# This request matches and is now served.
-	# It doesn't go on the still-pending list.
-	# The tuple in question is removed.
+	# This request matches and is now served. It doesn't go on the
+	# still-pending list. The tuple in question is removed
 
 	Debug.scoreboard {  Broadcast : Match <$pattern>}
 
@@ -219,31 +193,17 @@ proc ::scoreboard::Call {cmd args} {
     return
 }
 
-proc ::scoreboard::NotifyPut {tuple} {
-    Debug.scoreboard {  Notify Put}
+proc ::scoreboard::Notify {event tuple} {
+    Debug.scoreboard {  Notify $event}
 
-    variable eput
-    foreach item $eput {
+    variable bind
+    foreach item $bind($event) {
 	lassign $item p c
 	if {![string match $p $tuple]} continue
 	Call $c $tuple
     }
 
-    Debug.scoreboard {  Notify Put/}
-    return
-}
-
-proc ::scoreboard::NotifyTake {tuple} {
-    Debug.scoreboard {  Notify Take}
-
-    variable etake
-    foreach item $etake {
-	lassign $item p c
-	if {![string match $p $tuple]} continue
-	Call $c $tuple
-    }
-
-    Debug.scoreboard {  Notify Take/}
+    Debug.scoreboard {  Notify $event/}
     return
 }
 
@@ -253,8 +213,12 @@ proc ::scoreboard::NotifyTake {tuple} {
 namespace eval ::scoreboard {
     variable db       ; # tuple array: tuple -> count of instances
     variable wait  {} ; # list of pending 'take's.
-    variable eput  {} ; # list of bindings on put
-    variable etake {} ; # list of bindings on take
+
+    variable  bind    ; # List of bindings per event-type. Initially empty.
+    array set bind {
+	put     {}
+	take    {}
+    }
 
     namespace export {[a-z]*}
     namespace ensemble create

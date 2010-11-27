@@ -118,7 +118,7 @@ proc ::scoreboard::wpeek {pattern cmd} {
 }
 
 proc ::scoreboard::bind {event pattern cmd} {
-    Debug.scoreboard {bind::$event <$pattern> (($cmd))}
+    Debug.scoreboard {bind <$event <$pattern>> (($cmd))}
 
     if {$event ni {put take missing}} {
 	return -code error "Bad event \"$event\", expected one of missing, put, or take"
@@ -127,12 +127,12 @@ proc ::scoreboard::bind {event pattern cmd} {
     variable bind
     lappend  bind($event) [list $pattern $cmd]
 
-    Debug.scoreboard {bind::$event/}
+    Debug.scoreboard {bind/}
     return
 }
 
 proc ::scoreboard::unbind {event pattern cmd} {
-    Debug.scoreboard {unbind::$event <$pattern> (($cmd))}
+    Debug.scoreboard {unbind <$event <$pattern>> (($cmd))}
 
     if {$event ni {put take missing}} {
 	return -code error "Bad event \"$event\", expected one of missing, put, or take"
@@ -144,7 +144,7 @@ proc ::scoreboard::unbind {event pattern cmd} {
     if {$pos < 0} return
     set bind($event) [lreplace $bind($event) $pos $pos]
 
-    Debug.scoreboard {unbind::$event/}
+    Debug.scoreboard {unbind/}
     return
 }
 

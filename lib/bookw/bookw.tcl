@@ -105,6 +105,22 @@ snit::widgetadaptor ::bookw {
 	lassign $tuple _ path serial _
 	# TODO : Should assert that book is the expected one.
 
+	set token [$win.strip new]
+	$win.strip itemconfigure $token \
+	    -label   $path \
+	    -order   $serial \
+	    -message {Waiting for thumbnail...}
+
+	set mytoken($path) $token
+
+	# TODO :: Design the interaction between this, the scoreboard,
+	# and a third task-to-be on how to request the thumbnail for
+	# the image, compute it, and retrieve the result here.
+
+	# TODO :: This interaction also has to take the possible
+	# invalidation of the thumbnail by outside forces into
+	# account, requiring a re-computation and refresh here.
+
 	Debug.bookw {/}
 	return
     }
@@ -113,6 +129,12 @@ snit::widgetadaptor ::bookw {
 	# tuple = (IMAGE path serial book)
 	Debug.bookw {}
 
+	lassign $tuple _ path serial _
+	# TODO : Should assert that book is the expected one.
+
+	set token $mytoken($path)
+	unset mytoken($path)
+	$win.strip drop $token
 
 	Debug.bookw {/}
 	return
@@ -124,6 +146,9 @@ snit::widgetadaptor ::bookw {
     variable mybook    ; # Name of the book this is connected to
     variable mysb      ; # Command to access the scoreboard.
     variable mypattern ; # Scoreboard pattern for images of this book.
+
+    variable mytoken -array {} ; # Map image PATHs to the associated
+				 # TOKEN in the strip of images.
 
     ##
     # ### ### ### ######### ######### #########

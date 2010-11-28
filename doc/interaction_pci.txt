@@ -1,0 +1,81 @@
+Interactions between producers, users, and invalidators of data
+===============================================================
+
+Using the handling of thumbnail images as example and template for the
+pattern.
+
+Producer
+--------
+
+(1) The producer monitors the scoreboard (take) for the appearance of
+    tuples matching the pattern {!THUMBNAIL *}.
+
+    When appearing the second word of the taken tuple is treated as
+    the path of the image I whose thumbnail is to be invalidated.
+
+    The producer cleans up all data pertaining to the thumbnail of I,
+    ensuring that the next time the thumbnail for I is requested it
+    will be full regenerated from the base data, i.e. I itself.
+
+    Part of this cleanup is the removal of the {THUMBNAIL <I>} tuple
+    for this image. This action triggers (5), in the user, see below.
+
+
+(2) The producer monitors the scoreboard (bind missing) for queries,
+    i.e. patterns of tuples matching the pattern {THUMBNAIL * *}.
+    (Missing events trigger when a pattern to 'take' and 'wpeek'
+    matches no tuple at all).
+
+    When a miss is reported the second word of the reported pattern is
+    treated as the path of the image I whose thumbnail has been
+    requested but not known.
+
+    The producer generates and places a tuple {THUMBNAIL <I> <T>} into
+    the scoreboard, fulfilling the request, with I the path of the
+    image and T the path of the thumbnail image to use. The generation
+    of this tuple is trivial if T already exists in the filesystem, a
+    simply packaging up of the information. Otherwise the producer
+    launches a task actually generating T, using CRIMP to scale down I
+    to thumbnail size.
+
+Invalidator
+-----------
+
+(3) When actions by some task or other make the contents of the
+    thumbnail for image I obsolete the task or other places a tuple
+    matching {!THUMBNAIL <I>} into the scoreboard.
+
+    This then triggers (1), in the producer, see above.
+
+User
+----
+
+(4) When the thumbnail T of an image I is required the user asks
+    (wpeek) for a tuple matching {THUMBNAIL <I> *}. If a matching
+    tuple is present its third word is treated as the path to the
+    requested thumbnail.
+
+    If it is not present the query triggers (2) in the producer, see
+    above, causing the tuple to be generated in time.
+
+    Because of the delay possible in fulfulling the request the user
+    should be prepared for the possibility that by the time the
+    request is actually fulfilled the need for the data has passed.
+
+(5) The user monitors the scoreboard (bind take) for the removal
+    of {THUMBNAIL <I> *} tuples, signaling content invalidation.
+
+    When the removal is reported, and the user still has need of the
+    thumbnail then (4), see above, is invoked to request an updated
+    and valid thumbnail.
+
+
+Notes
+~~~~~
+
+(a) The image paths mentioned in the various actions above are all
+    relative to the project directory.
+
+(b) The parts of the system are not restricted to a single role in the
+    above. For example, the producer of brightness data for the images
+    is also the user of greyscale conversions of same images.

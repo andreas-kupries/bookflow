@@ -27,8 +27,8 @@ namespace eval ::bookflow::bright {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/bright
-debug on     bookflow/bright
+debug off    bookflow/bright
+#debug on     bookflow/bright
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -154,7 +154,7 @@ proc ::bookflow::bright::STATISTICS {project} {
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    debug on     bookflow/bright
+    #debug on     bookflow/bright
 
     # Requisites for the task
     package require bookflow::bright

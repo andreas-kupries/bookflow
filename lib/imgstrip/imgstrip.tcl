@@ -142,7 +142,9 @@ snit::widgetadaptor ::img::strip {
     method {ItemCget -message} {token} {
 	Debug.img/strip {}
 
-	set res [$mytree item element cget $token 0 eText -text]
+	if {[catch {
+	    set res [$mytree item element cget $token 0 eText -text]
+	}]} { set res {} }
 
 	Debug.img/strip {= $res /}
 	return $res
@@ -151,7 +153,9 @@ snit::widgetadaptor ::img::strip {
     method {ItemCget -label} {token} {
 	Debug.img/strip {}
 
-	set res [$mytree item element cget $token 0 eLabel -text]
+	if {[catch {
+	    set res [$mytree item element cget $token 0 eLabel -text]
+	}]} { set res {} }
 
 	Debug.img/strip {= $res /}
 	return $res
@@ -160,7 +164,9 @@ snit::widgetadaptor ::img::strip {
     method {ItemCget -order} {token} {
 	Debug.img/strip {}
 
-	set res [$mytree item element cget $token 0 eSerial -text]
+	if {[catch {
+	    set res [$mytree item element cget $token 0 eSerial -text]
+	}]} { set res {} }
 
 	Debug.img/strip {= $res /}
 	return $res
@@ -169,7 +175,9 @@ snit::widgetadaptor ::img::strip {
     method {ItemCget -image} {token} {
 	Debug.img/strip {}
 
-	set res [$mytree item element cget $token 0 eImage -image]
+	if {[catch {
+	    set res [$mytree item element cget $token 0 eImage -image]
+	}]} { set res {} }
 
 	Debug.img/strip {= $res /}
 	return $res

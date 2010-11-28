@@ -61,7 +61,7 @@ proc ::bookflow::create::TASK {} {
     # Requisites for the task
     package require scoreboard
     package require bookflow::create
-    package require bookflow::db
+    package require bookflow::project ; # client
 
     scoreboard take {AT *} [namespace code BEGIN]
 
@@ -83,28 +83,38 @@ proc ::bookflow::create::BEGIN {tuple} {
 
     # Create the empty database, and declare its presence
     set dbfile [file join [file normalize $projectdir] $defaultfile]
-    set db     [bookflow::db new $dbfile]
 
     Log.bookflow {% Project database $defaultfile}
-    scoreboard put [list DATABASE $defaultfile]
+    scoreboard put    [list DATABASE $defaultfile]
 
-    # At last fill it using the image files found by the scanner.
-    scoreboard takeall {FILE*} [namespace code [list FILES $db $dbfile]]
+    # At this point the server thread will complete initialization and
+    # provide access to the database. We wait until it has done so:
+
+    ::bookflow::project::ok [namespace code WaitForServerStart]
 
     Debug.bookflow/create {Bookflow::Create BEGIN/}
     return
 }
 
-proc ::bookflow::create::FILES {db dbfile tuples} {
-    Debug.bookflow/create {Bookflow::Create FILES $db}
-    Debug.bookflow/create {                       $dbfile}
+proc ::bookflow::create::WaitForServerStart {} {
+    Debug.bookflow/create {Bookflow::Create WaitForServerStart}
+
+    # Fill the database using the image files found by the scanner.
+    scoreboard takeall {FILE*} [namespace code FILES]
+
+    Debug.bookflow/create {Bookflow::Create WaitForServerStart/}
+    return
+}
+
+proc ::bookflow::create::FILES {tuples} {
+    Debug.bookflow/create {Bookflow::Create FILES}
     # tuples = list ((FILE *)...)
 
     # ... pull books out of the database and declare them ...
     # ... push files into the @scratch book, and declare
     # them as images, with book link ...
 
-    foreach b [$db books] {
+    foreach b [::bookflow::project books] {
 	Debug.bookflow/create {                   BOOK $b}
 	scoreboard put [list BOOK $b]
     }
@@ -112,7 +122,7 @@ proc ::bookflow::create::FILES {db dbfile tuples} {
     # Sorted by file name (like IMG_nnnn), this is the initial order.
     foreach def [lsort -dict -index 1 $tuples] {
 	lassign $def _ jpeg
-	set serial [$db book extend @scratch $jpeg]
+	set serial [::bookflow::project book extend @SCRATCH $jpeg]
 
 	Debug.bookflow/create {                   IMAGE $jpeg $serial @SCRATCH}
 	scoreboard put [list IMAGE $jpeg $serial @SCRATCH]

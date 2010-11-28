@@ -175,6 +175,7 @@ proc ::scoreboard::Broadcast {tuples} {
     variable wait
 
     Debug.scoreboard {  Broadcast}
+    #Debug.scoreboard {    [join $wait "\n    "]}
 
     set stillwaiting {}
     foreach item $wait {
@@ -201,8 +202,8 @@ proc ::scoreboard::Broadcast {tuples} {
 
 	Debug.scoreboard {  Broadcast : Match <$pattern>}
 
+	set tuple [lindex $tuples $pos]
 	if {$action eq "take"} {
-	    set tuple  [lindex $tuples $pos]
 	    set tuples [lreplace $tuples $pos $pos]
 
 	    Debug.scoreboard {    taken <$tuple>}

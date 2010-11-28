@@ -26,8 +26,8 @@ namespace eval ::bookflow::greyscale {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/greyscale
-debug on     bookflow/greyscale
+debug off    bookflow/greyscale
+#debug on     bookflow/greyscale
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -147,7 +147,7 @@ proc ::bookflow::greyscale::CONVERT {} {
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    debug on     bookflow/greyscale
+    #debug on     bookflow/greyscale
 
     # Requisites for the task
     package require bookflow::greyscale

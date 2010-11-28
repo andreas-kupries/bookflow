@@ -2,7 +2,7 @@
 # ### ### ### ######### ######### #########
 
 # Background task.
-# Waiting for requests to create an initial database.
+# Waiting for requests to create an initial project database.
 # Launches the task when the request is found.
 
 # Creates the specified directory, looking for the BOOKFLOW database and
@@ -81,32 +81,30 @@ proc ::bookflow::create::BEGIN {tuple} {
     # Get the payload
     lassign $tuple _ projectdir
 
-    # Create the empty database, and declare its presence
-    set dbfile [file join [file normalize $projectdir] $defaultfile]
-
+    # Declare database presence, triggers creation.
     Log.bookflow {% Project database $defaultfile}
     scoreboard put    [list DATABASE $defaultfile]
 
     # At this point the server thread will complete initialization and
     # provide access to the database. We wait until it has done so:
 
-    ::bookflow::project::ok [namespace code WaitForServerStart]
+    ::bookflow::project::ok [namespace code [list WaitForServerStart $projectdir]]
 
     Debug.bookflow/create {Bookflow::Create BEGIN/}
     return
 }
 
-proc ::bookflow::create::WaitForServerStart {} {
+proc ::bookflow::create::WaitForServerStart {project} {
     Debug.bookflow/create {Bookflow::Create WaitForServerStart}
 
     # Fill the database using the image files found by the scanner.
-    scoreboard takeall {FILE*} [namespace code FILES]
+    scoreboard takeall {FILE*} [namespace code [list FILES $project]]
 
     Debug.bookflow/create {Bookflow::Create WaitForServerStart/}
     return
 }
 
-proc ::bookflow::create::FILES {tuples} {
+proc ::bookflow::create::FILES {project tuples} {
     Debug.bookflow/create {Bookflow::Create FILES}
     # tuples = list ((FILE *)...)
 
@@ -122,7 +120,8 @@ proc ::bookflow::create::FILES {tuples} {
     # Sorted by file name (like IMG_nnnn), this is the initial order.
     foreach def [lsort -dict -index 1 $tuples] {
 	lassign $def _ jpeg
-	set serial [::bookflow::project book extend @SCRATCH $jpeg]
+	set serial [::bookflow::project book extend @SCRATCH $jpeg \
+			[file mtime $project/$jpeg]]
 
 	Debug.bookflow/create {                   IMAGE $jpeg $serial @SCRATCH}
 	scoreboard put [list IMAGE $jpeg $serial @SCRATCH]

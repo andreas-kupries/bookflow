@@ -17,8 +17,8 @@ namespace eval ::bookflow::db {}
 ## Tracing
 
 debug prefix bookflow/db {[::debug::snit::call]}
-debug off    bookflow/db
-#debug on     bookflow/db
+#debug off    bookflow/db
+debug on     bookflow/db
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -45,7 +45,8 @@ snit::type ::bookflow::db {
 	sqlite3 $db $path
 	set ok [expr {[Has $db bookflow] &&
 		      [Has $db book] &&
-		      [Has $db image]}]
+		      [Has $db image] &&
+		      [Has $db brightness]}]
 	$db close
 	return $ok
     }
@@ -110,6 +111,15 @@ snit::type ::bookflow::db {
 	       ord  INTEGER  NOT NULL,
 	       UNIQUE (bid, ord)
 	    );
+
+	    -- Brightness data for all images. Used to classify
+            -- images, distinguishing markers from regular pages,
+
+	    CREATE TABLE brightness (
+	       iid    INTEGER  NOT NULL  REFERENCES image,
+	       value  INTEGER  NOT NULL,
+	       UNIQUE (iid)
+	    );
 	}
 	$db close
 
@@ -132,10 +142,13 @@ snit::type ::bookflow::db {
     # ### ### ### ######### ######### #########
 
     method books {} {
+	Debug.bookflow/db {}
 	return [$mydb eval { SELECT name FROM book }]
     }
 
     method {book extend} {book file} {
+	Debug.bookflow/db {}
+
 	$mydb transaction {
 	    # Locate the named book, and retrieve its id.
 	    set bid [lindex [$mydb eval {
@@ -151,13 +164,67 @@ snit::type ::bookflow::db {
 	    if {$ord eq {}} { set ord -1 }
 	    incr ord
 
+	    Debug.bookflow/db { /book $bid, @$ord}
+
 	    # And enter the image into the database.
 	    $mydb eval {
 		INSERT INTO image VALUES (NULL, $file, $bid, $ord)
 	    }
 	}
 
+	Debug.bookflow/db {/}
 	return $ord
+    }
+
+    method {brightness set} {file value} {
+	Debug.bookflow/db {}
+
+	$mydb transaction {
+	    # Locate the id of the file.
+	    set iid [lindex [$mydb eval {
+		SELECT iid
+		FROM   image
+		WHERE  path = $file
+	    }] 0]
+
+	    # And enter the value into the database.
+	    $mydb eval {
+		INSERT INTO brightness VALUES ($iid, $value)
+	    }
+	}
+
+	Debug.bookflow/db {/}
+	return
+    }
+
+    method {brightness unset} {file} {
+	Debug.bookflow/db {}
+
+	$mydb transaction {
+	    # Remove the brightness value.
+	    $mydb eval {
+		DELETE FROM brightness
+		WHERE iid IN (SELECT iid FROM image WHERE path = $file)
+	    }
+	}
+
+	Debug.bookflow/db {/}
+	return
+    }
+
+    method {brightness get} {file} {
+	Debug.bookflow/db {}
+
+	$mydb transaction {
+	    set res [lindex [$mydb eval {
+		SELECT value
+		FROM   brightness
+		WHERE iid IN (SELECT iid FROM image WHERE path = $file)
+	    }] 0]
+	}
+
+	Debug.bookflow/db {= $res /}
+	return $res
     }
 
     ### Accessors and manipulators

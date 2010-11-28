@@ -83,11 +83,21 @@ snit::widgetadaptor ::bookw {
 	# Chart of brightness values for the page images.
 	rbc::graph $win.chart -height 100
 
-	rbc::vector create ${selfns}::O
-	rbc::vector create ${selfns}::B
-	$win.chart element create OB \
+	$win.chart axis configure y          -min 0 -max 256
+	$win.chart axis configure y2 -hide 0;# -min 40 -max 160 -title Pulse -stepsize 20
+
+	rbc::vector create ${selfns}::O ; # X-axis, page serial, ordering
+	rbc::vector create ${selfns}::B ; # page brightness
+	rbc::vector create ${selfns}::D ; # page brightness differences
+
+	$win.chart element create b \
 	    -xdata ${selfns}::O \
-	    -ydata ${selfns}::B
+	    -ydata ${selfns}::B \
+	    -color blue
+	$win.chart element create bd \
+	    -xdata ${selfns}::O \
+	    -ydata ${selfns}::D \
+	    -mapy y2 -color red
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -351,19 +361,25 @@ snit::widgetadaptor ::bookw {
 
 	set o {}
 	set b {}
+	set l {}
 	foreach s [lsort -dict [array names myorder s,*]] {
 	    set serial [lindex [split $s ,] end]
 	    set path $myorder($s)
 	    if {![info exists mybright($path)]} continue
+	    set v $mybright($path)
 	    lappend o $serial
-	    lappend b $mybright($path)
+	    lappend b $v
+	    lappend d [expr {($l eq {}) ? 0 : ($v - $l)}]
+	    set l $v
 	}
 
 	Debug.bookw {O = ($o)}
 	Debug.bookw {B = ($b)}
+	Debug.bookw {D = ($d)}
 
 	${selfns}::O set $o
 	${selfns}::B set $b
+	${selfns}::D set $d
 
 	Debug.bookw {/}
 	return

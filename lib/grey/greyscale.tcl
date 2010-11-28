@@ -197,8 +197,8 @@ proc ::bookflow::greyscale::GCONV {tuple} {
 ## Ready
 
 namespace eval ::bookflow::greyscale {
-    # Number of parallel scaling tasks.
-    variable max 2
+    # Number of parallel conversion tasks.
+    variable max 4
 }
 
 # ### ### ### ######### ######### #########

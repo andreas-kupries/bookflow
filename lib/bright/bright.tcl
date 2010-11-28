@@ -223,8 +223,8 @@ proc ::bookflow::bright::MEAN {project tuple} {
 ## Ready
 
 namespace eval ::bookflow::bright {
-    # Number of parallel scaling tasks.
-    variable max 1
+    # Number of parallel calculation tasks.
+    variable max 4
 }
 
 # ### ### ### ######### ######### #########

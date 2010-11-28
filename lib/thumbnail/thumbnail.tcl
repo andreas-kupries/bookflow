@@ -38,6 +38,7 @@ proc ::bookflow::thumbnail {} {
     scoreboard take {AT *} [namespace code thumbnail::BEGIN]
 
     Debug.bookflow/thumbnail {/}
+    return
 }
 
 proc ::bookflow::thumbnail::BEGIN {tuple} {
@@ -155,9 +156,15 @@ proc ::bookflow::thumbnail::SCALER {} {
     package require img::jpeg
 
     # Start waiting for requests.
-    scoreboard take {SCALE *} [namespace code SCALE]
+    READY
 
     Debug.bookflow/thumbnail {Bookflow::Thumbnail SCALER/}
+    return
+}
+
+proc ::bookflow::thumbnail::READY {} {
+    # Wait for more requests.
+    scoreboard take {SCALE *} [namespace code SCALE]
     return
 }
 
@@ -188,12 +195,13 @@ proc ::bookflow::thumbnail::SCALE {tuple} {
     crimp write 2tk $photo [crimp resize [crimp read tk $photo] $w $h]
     file mkdir [file dirname $dst]
     $photo write $dst -format png
+    image delete $photo
 
     # Push result
     scoreboard put $result
 
     # Wait for more requests.
-    scoreboard take {SCALE *} [namespace code SCALE]
+    READY
 
     Debug.bookflow/thumbnail {Bookflow::Thumbnail SCALE/}
     return

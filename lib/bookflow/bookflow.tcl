@@ -18,6 +18,7 @@ package require scoreboard
 package require bookflow::scan            ; # Task. Scan project directory for images and database
 package require bookflow::error           ; # Task. Post error reports to the user.
 package require bookflow::create          ; # Task. Create project database when missing and images available.
+package require bookflow::verify          ; # Task. Verify project database when existing, and pre-load cached data.
 package require bookflow::thumbnail       ; # Task. Generate thumbnails for page images.
 package require bookflow::greyscale       ; # Task. Generate greyscale for page images.
 package require bookflow::bright          ; # Task. Compute brightness of page images.
@@ -64,6 +65,7 @@ proc ::bookflow::Start {arguments} {
     Log.bookflow {Project in $project}
 
     bookflow::create         ; # Watch for request to create new project database.
+    bookflow::verify         ; # Watch for request to verify existing project database.
     bookflow::error          ; # Watch for error reports
     bookflow::thumbnail      ; # Watch for thumbnail generation requests.
     bookflow::greyscale      ; # Watch for greyscale generation requests.

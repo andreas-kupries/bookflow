@@ -15,6 +15,7 @@ package require debug
 package require debug::snit
 package require blog
 package require img::png
+package require rbc
 
 # ### ### ### ######### ######### #########
 ## Tracing
@@ -74,15 +75,20 @@ snit::widgetadaptor ::bookw {
     ##
 
     method Widgets {} {
-	#::widget::chart    .chart
-	img::strip $win.strip
+	# Chart of brightness values for the page images.
+	rbc::graph $win.chart -height 100
+
+	# Strip of thumbnails for the page images.
+	img::strip $win.strip -orientation vertical
+
 	#::widget::pages    .pages
 	return
     }
 
     method Layout {} {
-	#pack .chart   -side top    -fill both -expand 0
-	pack $win.strip    -side top    -fill both -expand 0
+	pack $win.strip    -side left   -fill both -expand 0
+	pack $win.chart    -side top    -fill both -expand 0
+	#pack $win.strip    -side top    -fill both -expand 0
 	#pack .pages   -side top    -fill both -expand 1
 	return
     }

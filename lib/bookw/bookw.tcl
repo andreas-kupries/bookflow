@@ -9,6 +9,7 @@
 package require Tcl 8.5
 package require Tk
 package require snit
+package require iq
 package require img::strip ; # Strip of thumbnail images at the top.
 package require debug
 package require debug::snit
@@ -35,6 +36,7 @@ snit::widgetadaptor ::bookw {
 	Debug.bookw {}
 
 	installhull using ttk::frame
+	set mytqueue  [iq ${selfns}::QT 4] ; # TODO : Query producer for allowed rate.
 	set myproject $project
 	set mybook    $book
 	set mysb      $scoreboard
@@ -161,33 +163,12 @@ snit::widgetadaptor ::bookw {
 	# doc/interaction_pci.txt (5).
 	$mysb bind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
 
-	if {$tflight >= $tthreshold} {
-	    lappend tpending $path
-
-	    Debug.bookw {/}
-	    return
-	}
-
-	$self DispatchThumbnail $path
+	# doc/interaction_pci.txt (4). Uses rate-limiting queue
+	$mytqueue put [list THUMBNAIL $path *] [mymethod HaveThumbnail]
 
 	Debug.bookw {/}
 	return
     }
-
-    method DispatchThumbnail {path} {
-	Debug.bookw {}
-
-	# doc/interaction_pci.txt (4).
-	$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
-	incr tflight
-
-	Debug.bookw {/}
-	return
-    }
-
-    variable tflight    0  ; # TODO Refactor the queue management into
-    variable tthreshold 4  ; # TODO a separate class and object. Also,
-    variable tpending   {} ; # TODO query producer for its bandwidth.
 
     # doc/interaction_pci.txt (5).
     method InvalidThumbnail {tuple} {
@@ -213,7 +194,7 @@ snit::widgetadaptor ::bookw {
 	$win.strip itemconfigure $mytoken($path) \
 	    -message {Invalidated...}
 
-	$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+	$mytqueue put [list THUMBNAIL $path *] [mymethod HaveThumbnail]
 
 	Debug.bookw {/}
 	return
@@ -224,13 +205,6 @@ snit::widgetadaptor ::bookw {
 	# tuple = (THUMBNAIL image-path thumbnail-path)
 	# Paths are relative to the project directory
 	Debug.bookw {}
-
-	incr tflight -1
-	if {($tflight < $tthreshold) && [llength $tpending]} {
-	    set path     [lindex $tpending 0]
-	    set tpending [lreplace $tpending 0 0]
-	    $self DispatchThumbnail $path
-	}
 
 	lassign $tuple _ path thumb
 
@@ -281,8 +255,9 @@ snit::widgetadaptor ::bookw {
     variable mytoken -array {} ; # Map image PATHs to the associated
 				 # TOKEN in the strip of images.
 
-    variable mycountimages 0
-    variable mycountthumb  0
+    variable mytqueue     {} ; # Issue queue for thumbnails
+    variable mycountimages 0 ; # Number of managed images
+    variable mycountthumb  0 ; # Number of managed thumbnails
 
     ##
     # ### ### ### ######### ######### #########

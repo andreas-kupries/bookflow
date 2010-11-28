@@ -12,24 +12,30 @@ package require snit
 package require img::strip ; # Strip of thumbnail images at the top.
 package require debug
 package require debug::snit
+package require blog
+package require img::png
 
 # ### ### ### ######### ######### #########
 ## Tracing
 
 debug prefix bookw {[::debug::snit::call]}
-debug on     bookw
+debug off    bookw
+#debug on     bookw
 
 # ### ### ### ######### ######### #########
 ## Implementation
 
 snit::widgetadaptor ::bookw {
+    option -log -default {}
+
     # ### ### ### ######### ######### #########
     ##
 
-    constructor {book scoreboard} {
+    constructor {book scoreboard project args} {
 	Debug.bookw {}
 
 	installhull using ttk::frame
+	set myproject $project
 	set mybook    $book
 	set mysb      $scoreboard
 	set mypattern [list IMAGE * $book]
@@ -45,6 +51,8 @@ snit::widgetadaptor ::bookw {
 	$mysb peek      $mypattern [mymethod BookImages]
 	$mysb bind put  $mypattern [mymethod BookImageNew]
 	$mysb bind take $mypattern [mymethod BookImageDel]
+
+	$self configurelist $args
 
 	Debug.bookw {/}
 	return
@@ -102,8 +110,11 @@ snit::widgetadaptor ::bookw {
 	# tuple = (IMAGE path serial book)
 	Debug.bookw {}
 
-	lassign $tuple _ path serial _
+	lassign $tuple _ path serial book
 	# TODO : Should assert that book is the expected one.
+
+	incr mycountimages
+	$self Log "Book $book ($mycountimages)"
 
 	set token [$win.strip new]
 	$win.strip itemconfigure $token \
@@ -113,13 +124,10 @@ snit::widgetadaptor ::bookw {
 
 	set mytoken($path) $token
 
-	# TODO :: Design the interaction between this, the scoreboard,
-	# and a third task-to-be on how to request the thumbnail for
-	# the image, compute it, and retrieve the result here.
-
-	# TODO :: This interaction also has to take the possible
-	# invalidation of the thumbnail by outside forces into
-	# account, requiring a re-computation and refresh here.
+	# doc/interaction_pci.txt (5).
+	$mysb bind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
+	# doc/interaction_pci.txt (4).
+	$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
 
 	Debug.bookw {/}
 	return
@@ -129,8 +137,17 @@ snit::widgetadaptor ::bookw {
 	# tuple = (IMAGE path serial book)
 	Debug.bookw {}
 
-	lassign $tuple _ path serial _
+	lassign $tuple _ path serial book
 	# TODO : Should assert that book is the expected one.
+
+	incr mycountimages -1
+	incr mycountthumb  -1
+	$self Log "Book $book ($mycountimages)"
+
+	# doc/interaction_pci.txt (5), release monitor
+	$mysb unbind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
+	# doc/interaction_pci.txt (4) - A waiting wpeek cannot released/canceled.
+	#$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
 
 	set token $mytoken($path)
 	unset mytoken($path)
@@ -141,14 +158,94 @@ snit::widgetadaptor ::bookw {
     }
 
     # ### ### ### ######### ######### #########
+
+    # doc/interaction_pci.txt (5).
+    method InvalidThumbnail {tuple} {
+	# tuple = (THUMBNAIL image-path thumbnail-path)
+	Debug.bookw {}
+
+	lassign $tuple _ path thumb
+
+	# Ignore invalidation of a thumbnail when its image is not
+	# used here any longer.
+
+	if {![info exists mytoken($path)]} {
+	    Debug.bookw {/}
+	    return
+	}
+
+	incr mycountthumb -1
+	$self Log "Refresh $path $mycountthumb/$mycountimages"
+
+	# Still using the image, therefore request a shiny new valid
+	# thumbnail. doc/interaction_pci.txt (4).
+
+	$win.strip itemconfigure $mytoken($path) \
+	    -message {Invalidated...}
+
+	$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+
+	Debug.bookw {/}
+	return
+    }
+
+    # doc/interaction_pci.txt (4).
+    method HaveThumbnail {tuple} {
+	# tuple = (THUMBNAIL image-path thumbnail-path)
+	# Paths are relative to the project directory
+	Debug.bookw {}
+
+	lassign $tuple _ path thumb
+
+	# Ignore the incoming thumbnail when its image is not used
+	# here any longer.
+
+	if {![info exists mytoken($path)]} {
+	    Debug.bookw {/}
+	    return
+	}
+
+	incr mycountthumb
+	$self Log "Thumbnail $path $mycountthumb/$mycountimages"
+
+	# Load thumbnail and place it into the strip proper. Careful,
+	# retrieve and destroy any previously shown thumbnail first.
+
+	set photo [$win.strip itemcget $mytoken($path) -image]
+	if {$photo ne {}} {
+	    image delete $photo
+	}
+
+	set photo [image create photo -file $myproject/$thumb]
+	$win.strip itemconfigure $mytoken($path) \
+	    -image   $photo \
+	    -message {}
+
+	Debug.bookw {/}
+	return
+    }
+
+    # ### ### ### ######### ######### #########
+
+    method Log {text} {
+	if {$options(-log) eq {}} return
+	uplevel #0 [list {*}$options(-log) $text]
+	return
+    }
+
+    # ### ### ### ######### ######### #########
     ##
 
+    variable myproject ; # Path of project directory.
     variable mybook    ; # Name of the book this is connected to
     variable mysb      ; # Command to access the scoreboard.
     variable mypattern ; # Scoreboard pattern for images of this book.
 
     variable mytoken -array {} ; # Map image PATHs to the associated
 				 # TOKEN in the strip of images.
+
+    variable mycountimages 0
+    variable mycountthumb  0
 
     ##
     # ### ### ### ######### ######### #########

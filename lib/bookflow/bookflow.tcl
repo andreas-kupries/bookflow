@@ -15,10 +15,11 @@ package require blog            ; # End-user visible activity logging,
 package require widget::log     ; # and the display for it.
 package require widget::toolbar
 package require scoreboard
-package require bookflow::scan   ; # Task. Scan project directory for images and database
-package require bookflow::error  ; # Task. Post error reports to the user.
-package require bookflow::create ; # Task. Create project database when missing and images available.
-package require bookw            ; # Book Display
+package require bookflow::scan      ; # Task. Scan project directory for images and database
+package require bookflow::error     ; # Task. Post error reports to the user.
+package require bookflow::create    ; # Task. Create project database when missing and images available.
+package require bookflow::thumbnail ; # Task. Generate thumbnails for page images.
+package require bookw               ; # Book Display
 
 namespace eval ::bookflow {}
 
@@ -47,19 +48,22 @@ proc ::bookflow::MakeGUI {} {
 }
 
 proc ::bookflow::Start {arguments} {
+    variable project
+
     Log.bookflow Booting...
 
     if {![llength $arguments]} {
-	set projectdir [pwd]
+	set project [pwd]
     } else {
-	set projectdir [lindex $arguments 0]
+	set project [lindex $arguments 0]
     }
 
-    Log.bookflow {Project in $projectdir}
+    Log.bookflow {Project in $project}
 
-    bookflow::create            ; # Watch for request to create new project database.
-    bookflow::error             ; # Watch for error reports
-    bookflow::scan $projectdir  ; # Scan project directory
+    bookflow::create         ; # Watch for request to create new project database.
+    bookflow::error          ; # Watch for error reports
+    bookflow::thumbnail      ; # Watch for thumbnail generation requests.
+    bookflow::scan $project  ; # Scan project directory
 
     # TODO :: Launch the other tasklets monitoring the scoreboard for
     # TODO :: their trigger conditions.
@@ -104,12 +108,13 @@ proc ::bookflow::Bindings {} {
 
 proc ::bookflow::BookNew {tuple} {
     variable bookcounter
+    variable project
     lassign $tuple _ name
 
     set w .books.f$bookcounter
     incr bookcounter
 
-    ::bookw $w $name scoreboard
+    ::bookw $w $name ::scoreboard $project -log Log.bookflow
     .books add $w -sticky nsew -text $name ; # TODO : -image book-icon -compound
 
     # Watch and react to scoreboard activity
@@ -134,6 +139,7 @@ namespace eval ::bookflow {
     namespace ensemble create
 
     variable bookcounter 0
+    variable project     {}
 }
 
 package provide bookflow 1.0

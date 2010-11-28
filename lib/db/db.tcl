@@ -105,10 +105,11 @@ snit::type ::bookflow::db {
 	    -- which is unique within a book.
 
 	    CREATE TABLE image (
-	       iid  INTEGER  NOT NULL  PRIMARY KEY  AUTOINCREMENT,
-	       path TEXT     NOT NULL  UNIQUE,
-	       bid  INTEGER  NOT NULL  REFERENCES book,
-	       ord  INTEGER  NOT NULL,
+	       iid   INTEGER  NOT NULL  PRIMARY KEY  AUTOINCREMENT,
+	       path  TEXT     NOT NULL  UNIQUE,
+	       bid   INTEGER  NOT NULL  REFERENCES book,
+	       ord   INTEGER  NOT NULL,
+	       mtime INTEGER  NOT NULL,
 	       UNIQUE (bid, ord)
 	    );
 
@@ -146,7 +147,7 @@ snit::type ::bookflow::db {
 	return [$mydb eval { SELECT name FROM book }]
     }
 
-    method {book extend} {book file} {
+    method {book extend} {book file mtime} {
 	Debug.bookflow/db {}
 
 	$mydb transaction {
@@ -168,7 +169,67 @@ snit::type ::bookflow::db {
 
 	    # And enter the image into the database.
 	    $mydb eval {
-		INSERT INTO image VALUES (NULL, $file, $bid, $ord)
+		INSERT INTO image
+		VALUES (NULL, $file, $bid, $ord, $mtime)
+	    }
+	}
+
+	Debug.bookflow/db {/}
+	return $ord
+    }
+
+    method {book holding} {file} {
+	Debug.bookflow/db {}
+	return [lindex [$mydb eval {
+	    SELECT name FROM book
+	    WHERE bid = (SELECT bid FROM image
+			 WHERE path = $file)
+	}] 0]
+    }
+
+    method {book files} {book} {
+	Debug.bookflow/db {}
+	return [$mydb eval {
+	    SELECT path, ord
+	    FROM image
+	    WHERE bid = (SELECT bid FROM book
+			 WHERE name = $book)
+	}]
+    }
+
+    # NOTE: Moves leave gaps in the serial numbering of the origin
+    # books. While this doesn't affect the ordering in itself, other
+    # parts using the serial number may assume that there are no
+    # gaps. Example: The book manager widget uses the serial numbers
+    # for the x-axis of the brightness chart, and gaps will show up
+    # there. Consider some mechanism to remove/prevent such gaps.
+
+    method {book move} {book file} {
+	Debug.bookflow/db {}
+
+	$mydb transaction {
+	    # Locate the named book, and retrieve its id.
+	    set bid [lindex [$mydb eval {
+		SELECT bid FROM book WHERE name = $book
+	    }] 0]
+
+	    # Get the last (= highest) ordering number for images in this book.
+	    set ord [lindex [$mydb eval {
+		SELECT MAX (ord) FROM image WHERE bid = $bid
+	    }] 0]
+
+	    # The new images is added behind the last-highest images.
+	    if {$ord eq {}} { set ord -1 }
+	    incr ord
+
+	    Debug.bookflow/db { /book $bid, @$ord}
+
+	    # And change the image in the database.
+	    $mydb eval {
+		UPDATE image
+		SET bid = $bid,
+		    ord = $ord
+		WHERE path = $file
 	    }
 	}
 
@@ -225,6 +286,17 @@ snit::type ::bookflow::db {
 
 	Debug.bookflow/db {= $res /}
 	return $res
+    }
+
+
+    method files {} {
+	Debug.bookflow/db {}
+	return [$mydb eval { SELECT path FROM image }]
+    }
+
+    method {file mtime} {file} {
+	Debug.bookflow/db {}
+	return [$mydb eval { SELECT mtime FROM image WHERE path = $file }]
     }
 
     ### Accessors and manipulators

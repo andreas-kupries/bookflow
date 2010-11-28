@@ -15,11 +15,14 @@ package require blog            ; # End-user visible activity logging,
 package require widget::log     ; # and the display for it.
 package require widget::toolbar
 package require scoreboard
-package require bookflow::scan      ; # Task. Scan project directory for images and database
-package require bookflow::error     ; # Task. Post error reports to the user.
-package require bookflow::create    ; # Task. Create project database when missing and images available.
-package require bookflow::thumbnail ; # Task. Generate thumbnails for page images.
-package require bookw               ; # Book Display
+package require bookflow::scan            ; # Task. Scan project directory for images and database
+package require bookflow::error           ; # Task. Post error reports to the user.
+package require bookflow::create          ; # Task. Create project database when missing and images available.
+package require bookflow::thumbnail       ; # Task. Generate thumbnails for page images.
+package require bookflow::greyscale       ; # Task. Generate greyscale for page images.
+package require bookflow::bright          ; # Task. Compute brightness of page images.
+package require bookflow::project::server ; # Task. In-application database server.
+package require bookw                     ; # Book Display
 
 namespace eval ::bookflow {}
 
@@ -63,6 +66,8 @@ proc ::bookflow::Start {arguments} {
     bookflow::create         ; # Watch for request to create new project database.
     bookflow::error          ; # Watch for error reports
     bookflow::thumbnail      ; # Watch for thumbnail generation requests.
+    bookflow::greyscale      ; # Watch for greyscale generation requests.
+    bookflow::bright         ; # Watch for brightness calculation requests.
     bookflow::scan $project  ; # Scan project directory
 
     # TODO :: Launch the other tasklets monitoring the scoreboard for

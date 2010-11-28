@@ -16,6 +16,7 @@ package require debug::snit
 package require blog
 package require img::png
 package require rbc
+package require uevent::onidle
 
 # ### ### ### ######### ######### #########
 ## Tracing
@@ -37,7 +38,11 @@ snit::widgetadaptor ::bookw {
 	Debug.bookw {}
 
 	installhull using ttk::frame
-	set mytqueue  [iq ${selfns}::QT 4] ; # TODO : Query producer for allowed rate.
+
+	install myrbright using uevent::onidle ${selfns}::RBG [mymethod RefreshBright]
+	install mytqueue  using iq             ${selfns}::QT 4 ; # TODO : Query producer for allowed rate.
+	install mybqueue  using iq             ${selfns}::QB 4 ; # TODO : Query producer for allowed rate.
+
 	set myproject $project
 	set mybook    $book
 	set mysb      $scoreboard
@@ -77,6 +82,12 @@ snit::widgetadaptor ::bookw {
     method Widgets {} {
 	# Chart of brightness values for the page images.
 	rbc::graph $win.chart -height 100
+
+	rbc::vector create ${selfns}::O
+	rbc::vector create ${selfns}::B
+	$win.chart element create OB \
+	    -xdata ${selfns}::O \
+	    -ydata ${selfns}::B
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -130,8 +141,13 @@ snit::widgetadaptor ::bookw {
 	    -order   $serial \
 	    -message {Waiting for thumbnail...}
 
-	set mytoken($path) $token
-	$self WatchThumbnail $path
+	set mytoken($path)     $token
+	set myorder(i,$path)   $serial
+	set myorder(s,$serial) $path
+
+	# Issue requests for the derived data needed by the widget.
+	$self GetThumbnail  $path
+	$self GetBrightness $path
 
 	Debug.bookw {/}
 	return
@@ -146,6 +162,7 @@ snit::widgetadaptor ::bookw {
 
 	incr mycountimages -1
 	incr mycountthumb  -1
+	incr mycountbright -1
 	$self Log "Book $book ($path /$mycountimages)"
 
 	# doc/interaction_pci.txt (5), release monitor
@@ -153,9 +170,20 @@ snit::widgetadaptor ::bookw {
 	# doc/interaction_pci.txt (4) - A waiting wpeek cannot released/canceled.
 	#$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
 
-	set token $mytoken($path)
+	# doc/interaction_pci.txt (5), release monitor
+	$mysb unbind take [list BRIGHTNESS $path *] [mymethod InvalidBrightness]
+	# doc/interaction_pci.txt (4) - A waiting wpeek cannot released/canceled.
+	#$mysb wpeek [list BRIGHTNESS $path *] [mymethod HaveThumbnail]
+
+	set token  $mytoken($path)
+	set serial $myorder(i,$path)
+
 	unset mytoken($path)
+	unset myorder(i,$path)
+	unset myorder(s,$serial)
+
 	$win.strip drop $token
+	$myrbright request
 
 	Debug.bookw {/}
 	return
@@ -163,7 +191,7 @@ snit::widgetadaptor ::bookw {
 
     # ### ### ### ######### ######### #########
 
-    method WatchThumbnail {path} {
+    method GetThumbnail {path} {
 	Debug.bookw {}
 
 	# doc/interaction_pci.txt (5).
@@ -192,7 +220,7 @@ snit::widgetadaptor ::bookw {
 	}
 
 	incr mycountthumb -1
-	$self Log "Refresh $path $mycountthumb/$mycountimages"
+	$self Log "Refresh T $path $mycountthumb/$mycountimages"
 
 	# Still using the image, therefore request a shiny new valid
 	# thumbnail. doc/interaction_pci.txt (4).
@@ -242,6 +270,105 @@ snit::widgetadaptor ::bookw {
 	return
     }
 
+
+    # ### ### ### ######### ######### #########
+
+    method GetBrightness {path} {
+	Debug.bookw {}
+
+	# doc/interaction_pci.txt (5).
+	$mysb bind take [list BRIGHTNESS $path *] [mymethod InvalidBrightness]
+
+	# doc/interaction_pci.txt (4). Uses rate-limiting queue
+	$mybqueue put [list BRIGHTNESS $path *] [mymethod HaveBrightness]
+
+	Debug.bookw {/}
+	return
+    }
+
+    # doc/interaction_pci.txt (5).
+    method InvalidBrightness {tuple} {
+	# tuple = (BRIGHTNESS image-path brightness)
+	Debug.bookw {}
+
+	lassign $tuple _ path bright
+
+	# Ignore invalidation of a brightness value when its image is
+	# not used here any longer.
+
+	if {![info exists mytoken($path)]} {
+	    Debug.bookw {/}
+	    return
+	}
+
+	incr mycountbright -1
+	$self Log "Refresh B $path $mycountbright/$mycountimages"
+
+	# Still using the image, therefore request a shiny new valid
+	# brightness value for it. doc/interaction_pci.txt (4).
+
+	unset mybright($path)
+	$myrbright request
+
+	$mybqueue put [list BRIGHTNESS $path *] [mymethod HaveBrightness]
+
+	Debug.bookw {/}
+	return
+    }
+
+    # doc/interaction_pci.txt (4).
+    method HaveBrightness {tuple} {
+	# tuple = (BRIGHTNESS image-path brightness)
+	# Paths are relative to the project directory
+	Debug.bookw {}
+
+	lassign $tuple _ path bright
+
+	# Ignore the incoming brightness value when its image is not
+	# used here any longer.
+
+	if {![info exists mytoken($path)]} {
+	    Debug.bookw {/}
+	    return
+	}
+
+	incr mycountbright
+	$self Log "Brightness $path $mycountbright/$mycountimages"
+
+	set mybright($path) $bright
+	$myrbright request
+
+	Debug.bookw {/}
+	return
+    }
+
+    method RefreshBright {} {
+	Debug.bookw {}
+
+	# Pull the currently known brightness values out of our data
+	# structures, put them into the proper order, then stuff the
+	# result into the chart.
+
+	set o {}
+	set b {}
+	foreach s [lsort -dict [array names myorder s,*]] {
+	    set serial [lindex [split $s ,] end]
+	    set path $myorder($s)
+	    if {![info exists mybright($path)]} continue
+	    lappend o $serial
+	    lappend b $mybright($path)
+	}
+
+	Debug.bookw {O = ($o)}
+	Debug.bookw {B = ($b)}
+
+	${selfns}::O set $o
+	${selfns}::B set $b
+
+	Debug.bookw {/}
+	return
+    }
+
     # ### ### ### ######### ######### #########
 
     method Log {text} {
@@ -258,12 +385,22 @@ snit::widgetadaptor ::bookw {
     variable mysb      ; # Command to access the scoreboard.
     variable mypattern ; # Scoreboard pattern for images of this book.
 
-    variable mytoken -array {} ; # Map image PATHs to the associated
-				 # TOKEN in the strip of images.
+    variable mytoken -array {}  ; # Map image PATHs to the associated
+				  # TOKEN in the strip of images.
+    variable myorder -array {}  ; # Map image PATHs to the associated
+				  # order in the strip of images, and
+				  # chart of page brightness, and the
+				  # reverse.
+    variable mybright -array {} ; # Map image PATHs to the associated
+				  # page brightness.
 
+    variable myrbright    {} ; # onidle collator for brightness refresh
     variable mytqueue     {} ; # Issue queue for thumbnails
+    variable mybqueue     {} ; # Issue queue for brightness
+
     variable mycountimages 0 ; # Number of managed images
     variable mycountthumb  0 ; # Number of managed thumbnails
+    variable mycountbright 0 ; # Number of managed brightness values
 
     ##
     # ### ### ### ######### ######### #########

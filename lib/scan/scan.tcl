@@ -18,8 +18,8 @@ namespace eval ::bookflow::scan {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/scan
-debug on     bookflow/scan
+debug off    bookflow/scan
+#debug on     bookflow/scan
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -44,7 +44,7 @@ proc ::bookflow::scan::TASK {projectdir} {
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    debug on     bookflow/scan
+    #debug on     bookflow/scan
 
     # Requisites for the task
     package require blog

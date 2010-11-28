@@ -15,8 +15,8 @@ namespace eval ::bookflow::error {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/error
-debug on     bookflow/error
+debug off    bookflow/error
+#debug on     bookflow/error
 
 # ### ### ### ######### ######### #########
 ## API & Implementation

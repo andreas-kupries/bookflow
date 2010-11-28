@@ -20,8 +20,8 @@ namespace eval ::bookflow::create {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/create
-debug on     bookflow/create
+debug off    bookflow/create
+#debug on     bookflow/create
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -56,7 +56,7 @@ proc ::bookflow::create::TASK {} {
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    debug on     bookflow/create
+    #debug on     bookflow/create
 
     # Requisites for the task
     package require scoreboard
@@ -74,7 +74,7 @@ proc ::bookflow::create::BEGIN {tuple} {
 
     Debug.bookflow/create {Bookflow::Create BEGIN <$tuple>}
 
-    # tuple = (AT *)
+    # tuple = (AT project)
     # Put it back for the use of others.
     scoreboard put $tuple
 

@@ -26,8 +26,8 @@ namespace eval ::bookflow::thumbnail {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/thumbnail
-debug on     bookflow/thumbnail
+debug off    bookflow/thumbnail
+#debug on     bookflow/thumbnail
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -145,7 +145,7 @@ proc ::bookflow::thumbnail::SCALER {} {
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    debug on     bookflow/thumbnail
+    #debug on     bookflow/thumbnail
 
     # Requisites for the task
     package require bookflow::thumbnail

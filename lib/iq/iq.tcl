@@ -21,8 +21,8 @@ package require struct::queue
 ## Tracing
 
 debug prefix iq {[::debug::snit::call]}
-#debug off    iq
-debug on     iq
+debug off    iq
+#debug on     iq
 
 # ### ### ### ######### ######### #########
 ## Implementation

@@ -14,8 +14,8 @@ namespace eval ::scoreboard {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    scoreboard
-debug on     scoreboard
+debug off    scoreboard
+#debug on     scoreboard
 
 # ### ### ### ######### ######### #########
 ##

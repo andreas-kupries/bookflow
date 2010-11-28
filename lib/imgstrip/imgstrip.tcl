@@ -17,8 +17,8 @@ package require debug::snit
 package require debug
 package require syscolor
 
-#debug off    img/strip
-debug on     img/strip
+debug off    img/strip
+#debug on     img/strip
 debug prefix img/strip {[list [::debug::snit::call]] }
 
 snit::widgetadaptor ::img::strip {

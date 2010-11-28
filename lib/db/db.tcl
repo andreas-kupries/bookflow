@@ -16,9 +16,9 @@ namespace eval ::bookflow::db {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/db
 debug prefix bookflow/db {[::debug::snit::call]}
-debug on     bookflow/db
+debug off    bookflow/db
+#debug on     bookflow/db
 
 # ### ### ### ######### ######### #########
 ## API & Implementation

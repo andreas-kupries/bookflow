@@ -19,8 +19,8 @@ namespace eval ::task {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    task
-debug on     task
+debug off    task
+#debug on     task
 
 # ### ### ### ######### ######### #########
 ## API & Implementation

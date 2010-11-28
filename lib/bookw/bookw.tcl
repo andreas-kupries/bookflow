@@ -19,8 +19,8 @@ package require img::png
 ## Tracing
 
 debug prefix bookw {[::debug::snit::call]}
-debug off    bookw
-#debug on     bookw
+#debug off    bookw
+debug on     bookw
 
 # ### ### ### ######### ######### #########
 ## Implementation
@@ -114,7 +114,7 @@ snit::widgetadaptor ::bookw {
 	# TODO : Should assert that book is the expected one.
 
 	incr mycountimages
-	$self Log "Book $book ($mycountimages)"
+	$self Log "Book $book ($path /$mycountimages)"
 
 	set token [$win.strip new]
 	$win.strip itemconfigure $token \
@@ -123,11 +123,7 @@ snit::widgetadaptor ::bookw {
 	    -message {Waiting for thumbnail...}
 
 	set mytoken($path) $token
-
-	# doc/interaction_pci.txt (5).
-	$mysb bind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
-	# doc/interaction_pci.txt (4).
-	$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+	$self WatchThumbnail $path
 
 	Debug.bookw {/}
 	return
@@ -142,7 +138,7 @@ snit::widgetadaptor ::bookw {
 
 	incr mycountimages -1
 	incr mycountthumb  -1
-	$self Log "Book $book ($mycountimages)"
+	$self Log "Book $book ($path /$mycountimages)"
 
 	# doc/interaction_pci.txt (5), release monitor
 	$mysb unbind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
@@ -158,6 +154,40 @@ snit::widgetadaptor ::bookw {
     }
 
     # ### ### ### ######### ######### #########
+
+    method WatchThumbnail {path} {
+	Debug.bookw {}
+
+	# doc/interaction_pci.txt (5).
+	$mysb bind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
+
+	if {$tflight >= $tthreshold} {
+	    lappend tpending $path
+
+	    Debug.bookw {/}
+	    return
+	}
+
+	$self DispatchThumbnail $path
+
+	Debug.bookw {/}
+	return
+    }
+
+    method DispatchThumbnail {path} {
+	Debug.bookw {}
+
+	# doc/interaction_pci.txt (4).
+	$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+	incr tflight
+
+	Debug.bookw {/}
+	return
+    }
+
+    variable tflight    0  ; # TODO Refactor the queue management into
+    variable tthreshold 4  ; # TODO a separate class and object. Also,
+    variable tpending   {} ; # TODO query producer for its bandwidth.
 
     # doc/interaction_pci.txt (5).
     method InvalidThumbnail {tuple} {
@@ -194,6 +224,13 @@ snit::widgetadaptor ::bookw {
 	# tuple = (THUMBNAIL image-path thumbnail-path)
 	# Paths are relative to the project directory
 	Debug.bookw {}
+
+	incr tflight -1
+	if {($tflight < $tthreshold) && [llength $tpending]} {
+	    set path     [lindex $tpending 0]
+	    set tpending [lreplace $tpending 0 0]
+	    $self DispatchThumbnail $path
+	}
 
 	lassign $tuple _ path thumb
 

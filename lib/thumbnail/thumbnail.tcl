@@ -204,7 +204,7 @@ proc ::bookflow::thumbnail::SCALE {tuple} {
 
 namespace eval ::bookflow::thumbnail {
     # Number of parallel scaling tasks.
-    variable max 2
+    variable max 4
 }
 
 # ### ### ### ######### ######### #########

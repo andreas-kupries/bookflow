@@ -113,12 +113,21 @@ snit::type ::bookflow::db {
 	       UNIQUE (bid, ord)
 	    );
 
-	    -- Brightness data for all images. Used to classify
-            -- images, distinguishing markers from regular pages,
+	    -- Statistical data for all images. Used to classify
+            -- images, distinguishing markers from regular pages.
+            -- Actually the whole slew of basic statistics. Just in
+            -- case. (Machine-learning over lots of prjects ?!).
 
-	    CREATE TABLE brightness (
-	       iid    INTEGER  NOT NULL  REFERENCES image,
-	       value  INTEGER  NOT NULL,
+	    CREATE TABLE statistics (
+	       iid       INTEGER  NOT NULL  REFERENCES image,
+	       min       INTEGER  NOT NULL,
+	       max       INTEGER  NOT NULL,
+	       mean      REAL     NOT NULL,
+	       middle    REAL     NOT NULL,
+	       median    INTEGER  NOT NULL,  
+	       stddev    REAL     NOT NULL,
+	       variance  REAL     NOT NULL,
+	       histogram TEXT     NOT NULL,
 	       UNIQUE (iid)
 	    );
 	}
@@ -237,7 +246,18 @@ snit::type ::bookflow::db {
 	return $ord
     }
 
-    method {brightness set} {file value} {
+    method files {} {
+	Debug.bookflow/db {}
+	return [$mydb eval { SELECT path FROM image }]
+    }
+
+    method {file mtime} {file} {
+	Debug.bookflow/db {}
+	return [$mydb eval { SELECT mtime FROM image WHERE path = $file }]
+    }
+
+
+    method {statistics set} {file min max mean middle median stddev variance histogram} {
 	Debug.bookflow/db {}
 
 	$mydb transaction {
@@ -250,7 +270,8 @@ snit::type ::bookflow::db {
 
 	    # And enter the value into the database.
 	    $mydb eval {
-		INSERT INTO brightness VALUES ($iid, $value)
+		INSERT INTO statistics
+		VALUES ($iid, $min, $max, $mean, $middle, $median, $stddev, $variance, $histogram)
 	    }
 	}
 
@@ -258,13 +279,13 @@ snit::type ::bookflow::db {
 	return
     }
 
-    method {brightness unset} {file} {
+    method {statistics unset} {file} {
 	Debug.bookflow/db {}
 
 	$mydb transaction {
-	    # Remove the brightness value.
+	    # Remove the statistics value.
 	    $mydb eval {
-		DELETE FROM brightness
+		DELETE FROM statistics
 		WHERE iid IN (SELECT iid FROM image WHERE path = $file)
 	    }
 	}
@@ -273,30 +294,20 @@ snit::type ::bookflow::db {
 	return
     }
 
-    method {brightness get} {file} {
+    method {statistics get} {file} {
 	Debug.bookflow/db {}
 
 	$mydb transaction {
-	    set res [lindex [$mydb eval {
-		SELECT value
-		FROM   brightness
+	    set res [$mydb eval {
+		SELECT min, max, mean, middle, median, stddev, variance, histogram
+		FROM   statistics
 		WHERE iid IN (SELECT iid FROM image WHERE path = $file)
-	    }] 0]
+	    }]
 	}
 
+	#lassign $res min max mean middle median stddev variance histogram
 	Debug.bookflow/db {= $res /}
 	return $res
-    }
-
-
-    method files {} {
-	Debug.bookflow/db {}
-	return [$mydb eval { SELECT path FROM image }]
-    }
-
-    method {file mtime} {file} {
-	Debug.bookflow/db {}
-	return [$mydb eval { SELECT mtime FROM image WHERE path = $file }]
     }
 
     ### Accessors and manipulators

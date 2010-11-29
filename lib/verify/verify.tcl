@@ -161,11 +161,11 @@ proc ::bookflow::verify::FILES {project tuples} {
 	}
 
 	if {$modified} {
-	    # Invalidation requests. We can do the brightness here
+	    # Invalidation requests. We can do the statistics here
 	    # because nobody is in a position to ask for it and we
 	    # know how to do it. For the other things we rely on their
 	    # producers for the invalidation.
-	    ::bookflow::project brightness unset $jpeg
+	    ::bookflow::project statistics unset $jpeg
 	    scoreboard put [list !THUMBNAIL  $jpeg]
 	    scoreboard put [list !GREYSCALE  $jpeg]
 	}
@@ -184,12 +184,12 @@ proc ::bookflow::verify::FILES {project tuples} {
 	    Debug.bookflow/verify {                   IMAGE $jpeg $serial $b}
 	    scoreboard put [list IMAGE $jpeg $serial $b]
 
-	    # Pre-load any brightness information, shortcircuiting its
+	    # Pre-load any statistics information, shortcircuiting its
 	    # producer.
 
-	    set brightness [::bookflow::project brightness get $jpeg]
-	    if {$brightness ne {}} {
-		scoreboard put [list BRIGHTNESS $jpeg $brightness]
+	    set statistics [::bookflow::project statistics get $jpeg]
+	    if {$statistics ne {}} {
+		scoreboard put [list STATISTICS $jpeg $statistics]
 	    }
 	}
     }

@@ -2,11 +2,15 @@
 # ### ### ### ######### ######### #########
 
 # Background task. Continuous.
-# Calculating brightness of page images.
+# Calculating the basic statistica values for page images.
+
+# Called 'brightness' for historical reasons. That was the only value
+# computed here at first (mean).
+
 # A producer in terms of "doc/interaction_pci.txt"
 # A consumer as well, of page greyscale images.
 #
-# Calculated brightness values are cached in the project database.
+# Calculated statistical values are cached in the project database.
 
 # Limits itself to no more than four actual threads in flight,
 # i.e. computing image statistics. The computing tasks do not exit on
@@ -60,9 +64,9 @@ proc ::bookflow::bright::BEGIN {tuple} {
 proc ::bookflow::bright::INIT {project} {
     Debug.bookflow/bright {Bookflow::Bright INIT}
 
-    # Monitor for brightness value invalidation
+    # Monitor for invalidation of statistics
     # doc/interaction_pci.txt (1)
-    scoreboard take {!BRIGHTNESS *} [namespace code INVALIDATE]
+    scoreboard take {!STATISTICS *} [namespace code INVALIDATE]
 
     # Launch the tasks doing the actual resizing.
     variable max
@@ -75,7 +79,7 @@ proc ::bookflow::bright::INIT {project} {
 
     # Monitor for bright creation requests.
     # doc/interaction_pci.txt (2)
-    scoreboard bind missing {BRIGHTNESS *} [namespace code MAKE]
+    scoreboard bind missing {STATISTICS *} [namespace code MAKE]
 
     Debug.bookflow/bright {Bookflow::Bright INIT/}
     return
@@ -85,12 +89,12 @@ proc ::bookflow::bright::INIT {project} {
 ## Internals. Bright invalidation. See doc/interaction_pci.txt (1).
 
 proc ::bookflow::bright::INVALIDATE {tuple} {
-    # tuple = (!BRIGHTNESS path)
+    # tuple = (!STATISTICS path)
     lassign $tuple _ path
 
     Debug.bookflow/bright {Bookflow::Bright INVALIDATE $path}
 
-    scoreboard takeall [list BRIGHTNESS $path *] [namespace code [list RETRACT $path]]
+    scoreboard takeall [list STATISTICS $path *] [namespace code [list RETRACT $path]]
 
     Debug.bookflow/bright {Bookflow::Bright INVALIDATE/}
     return
@@ -99,10 +103,10 @@ proc ::bookflow::bright::INVALIDATE {tuple} {
 proc ::bookflow::bright::RETRACT {path tuples} {
     Debug.bookflow/bright {Bookflow::Bright RETRACT $path}
 
-    ::bookflow::project brightness unset $path
+    ::bookflow::project statistics unset $path
 
     # Look for more invalidation requests
-    scoreboard take {!BRIGHTNESS *} [namespace code INVALIDATE]
+    scoreboard take {!STATISTICS *} [namespace code INVALIDATE]
 
     Debug.bookflow/bright {Bookflow::Bright RETRACT/}
     return
@@ -112,37 +116,37 @@ proc ::bookflow::bright::RETRACT {path tuples} {
 ## Internals. Bright creation. See doc/interaction_pci.txt (2).
 
 proc ::bookflow::bright::MAKE {pattern} {
-    # pattern = (BRIGHTNESS path *)
+    # pattern = (STATISTICS path *)
     Debug.bookflow/bright {Bookflow::Bright MAKE <$pattern>}
 
     lassign $pattern _ path
 
-    set brightness [::bookflow::project brightness get $path]
+    set statistics [::bookflow::project statistics get $path]
 
-    if {$brightness ne {}} {
-	# The requested value already existed in the project database,
-	# simply make it available.
+    if {$statistics ne {}} {
+	# The requested values already existed in the project database,
+	# simply make them available.
 
 	# TODO :: Have the verify task-to-be load existing brightness
 	# TODO :: information to shortcircuit even this fast bailout.
 	# TODO :: Note however that we will then need some way to
 	# TODO :: prevent the insertion of duplicate or similar tuples.
 
-	RESULT $path $brightness
+	RESULT $path $statistics
     } else {
-	# Brightness is not known. Put in a request for the computing
-	# tasks to generate it. This will also put the proper result
+	# Statistics are not known. Put in a request for the computing
+	# tasks to generate them. This will also put the proper result
 	# into the scoreboard on completion.
 
-	scoreboard put [list BRIGHT? $path]
+	scoreboard put [list STATSQ $path]
     }
 
     Debug.bookflow/bright {Bookflow::Bright MAKE/}
     return
 }
 
-proc ::bookflow::bright::RESULT {path brightness} {
-    scoreboard put [list BRIGHTNESS $path $brightness]
+proc ::bookflow::bright::RESULT {path statistics} {
+    scoreboard put [list STATISTICS $path $statistics]
     return
 }
 
@@ -172,12 +176,12 @@ proc ::bookflow::bright::STATISTICS {project} {
 
 proc ::bookflow::bright::READY {project} {
     # Wait for more requests.
-    scoreboard take {BRIGHT? *} [namespace code [list STAT $project]]
+    scoreboard take {STATSQ *} [namespace code [list STAT $project]]
     return
 }
 
 proc ::bookflow::bright::STAT {project tuple} {
-    # tuple = (BRIGHT? path)
+    # tuple = (STATSQ path)
 
     # Decode request
     lassign $tuple _ path
@@ -198,24 +202,29 @@ proc ::bookflow::bright::MEAN {project tuple} {
 
     set data  [fileutil::cat -translation binary $project/$grey]
     Debug.bookflow/bright {  read ok       $path}
+
     set image [crimp read pgm $data]
     Debug.bookflow/bright {  pgm read ok   $path}
+
     set stats [crimp statistics basic $image]
     Debug.bookflow/bright {  statistics ok $path}
-    set brightness [dict get $stats channel luma mean]
-    Debug.bookflow/bright {  brightness ok $path}
+
+    array set s [dict get $stats channel luma]
+    Debug.bookflow/bright {  statistics ok $path}
+
+    set statistics [list $s(min) $s(max) $s(mean) $s(middle) $s(median) $s(stddev) $s(variance) $s(hf)]
 
     # Save/Cache result in the project.
-    ::bookflow::project brightness set $path $brightness
+    ::bookflow::project statistics set $path {*}$statistics
     Debug.bookflow/bright {  db ok         $path}
 
     # Push result
-    RESULT $path $brightness
+    RESULT $path $statistics
 
     # Wait for more requests.
     READY $project
 
-    Debug.bookflow/bright {Bookflow::Bright MEAN $path = $brightness/}
+    Debug.bookflow/bright {Bookflow::Bright MEAN $path = $statistics/}
     return
 }
 

@@ -1,0 +1,46 @@
+While I want bookflow to be mostly automatic when identifying pages,
+markers and processing everything, writing the automatics will take
+time and I wish to process the books I have now. So, some commands
+have to be implemented which go towards that goal.
+
+This actually may have another advantage. Training data. Perfectly
+labeled images which can used to train some type of system for the
+image classification.
+
+Most interactivity is through the keyboard, which is generally quicker.
+
+	Key	Note	Command		Notes
+	---	----	-------		-----
+(i)	SPACE		show next
+(ii)	->	cursor	show next	change of selection, active item
+(iii)	<-	cursor	show previous	s.a.
+	---	----	-------		-----
+(iv)	b		label as black marker
+(v)	w		label as white marker = lightfield
+(vi)	c		label as cover (front, back automatic based on the
+				       section we are in)
+	---	----	-------		----
+
+The commands (iv) and (v) are enough for the system to then
+automatically determine the locations of the composite markers
+delimiting the various sections (garbage, even, odd), and label the
+pages in the sections. The command (vi) is needed to fix the pages
+which are the covers and likely mislabled as plain pages.
+
+When all pages (for a book) are labeled we can trigger the next phase,
+which
+
+(a) places them into a separate (new) book
+(b) associates each page with the nearest preceding lightfield in
+    imaging order.
+(c) re-orders them front to back
+(d) rotates the derived images (thumbnail, page display) upright
+
+    NOTE: the base images are not modified.
+    NOTE: this is done by invalidating the data and then using the
+	  labels in the scaler tasks to determine the use of rotations.
+    NOTE: rotate after scaling, less data to handle.
+
+    A problem, we have to note somewhere which thumbnails have been
+    rotated, and which don't. Likely in the project database, as an
+    annotation.

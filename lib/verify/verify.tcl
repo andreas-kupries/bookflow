@@ -19,8 +19,8 @@ namespace eval ::bookflow::verify {}
 # ### ### ### ######### ######### #########
 ## Tracing
 
-#debug off    bookflow/verify
-debug on     bookflow/verify
+debug off    bookflow/verify
+#debug on     bookflow/verify
 
 # ### ### ### ######### ######### #########
 ## API & Implementation
@@ -55,6 +55,7 @@ proc ::bookflow::verify::TASK {} {
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
+    debug off    bookflow/verify
     #debug on     bookflow/verify
 
     # Requisites for the task

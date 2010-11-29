@@ -11,6 +11,7 @@
 
 package require Tcl 8.5         ; # Required runtime.
 package require Tk
+package require debug ; debug prefix :: {[thread::id] [clock format [clock seconds]]}
 package require blog            ; # End-user visible activity logging,
 package require widget::log     ; # and the display for it.
 package require widget::toolbar

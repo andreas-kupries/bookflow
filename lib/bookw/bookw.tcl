@@ -22,8 +22,8 @@ package require uevent::onidle
 ## Tracing
 
 debug prefix bookw {[::debug::snit::call]}
-#debug off    bookw
-debug on     bookw
+debug off    bookw
+#debug on     bookw
 
 # ### ### ### ######### ######### #########
 ## Implementation

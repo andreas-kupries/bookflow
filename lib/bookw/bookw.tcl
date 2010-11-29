@@ -121,6 +121,30 @@ snit::widgetadaptor ::bookw {
     }
 
     method Bindings {} {
+
+	bind $win.strip <<SelectionChanged>> \
+	    [mymethod Selection %d]
+
+	return
+    }
+
+    # ### ### ### ######### ######### #########
+
+    method Selection {selection} {
+	Debug.bookw {}
+
+	set token [lindex $selection 0]
+	set path  $mypath($token)
+	set at    $myorder($path)
+
+	Debug.bookw { | $token -> $path -> $at}
+
+	# WRONG. Create only on first call, later move the marker. Or
+	# delete and recreate.
+	$win.chart marker create line -fill black \
+	    -coords [list $at -Inf $at Inf]
+
+	Debug.bookw {/}
 	return
     }
 
@@ -158,12 +182,15 @@ snit::widgetadaptor ::bookw {
 	    -message {Waiting for thumbnail...}
 
 	set mytoken($path)     $token
-	set myorder(i,$path)   $serial
-	set myorder(s,$serial) $path
+	set mypath($token)     $path
+	set myorder($path)     $serial
+	set myopath($serial)   $path
 
 	# Issue requests for the derived data needed by the widget.
 	$self GetThumbnail  $path
 	$self GetStatistics $path
+
+	$win.chart axis configure x -min 0 -max $mycountimages
 
 	Debug.bookw {/}
 	return
@@ -192,14 +219,17 @@ snit::widgetadaptor ::bookw {
 	#$mysb wpeek [list STATISTICS $path *] [mymethod HaveThumbnail]
 
 	set token  $mytoken($path)
-	set serial $myorder(i,$path)
+	set serial $myorder($path)
 
 	unset mytoken($path)
-	unset myorder(i,$path)
-	unset myorder(s,$serial)
+	unset mypath($token)
+	unset myorder($path)
+	unset myopath($serial)
 
 	$win.strip drop $token
 	$myrbright request
+
+	$win.chart axis configure x -min 0 -max $mycountimages
 
 	Debug.bookw {/}
 	return
@@ -368,11 +398,13 @@ snit::widgetadaptor ::bookw {
 	set o {}
 	set b {}
 	set s {}
+	set d {}
 	set l {}
-	foreach key [lsort -dict [array names myorder s,*]] {
-	    set serial [lindex [split $key ,] end]
-	    set path $myorder($key)
+
+	foreach serial [lsort -dict [array names myopath]] {
+	    set path $myopath($serial)
 	    if {![info exists mystat($path)]} continue
+
 	    lassign $mystat($path) _ _ mean _ _ stddev _ _
 	    # brightness = mean.
 	    lappend o $serial
@@ -382,10 +414,10 @@ snit::widgetadaptor ::bookw {
 	    set l $mean
 	}
 
-	Debug.bookw {O = ($o)}
-	Debug.bookw {B = ($b)}
-	Debug.bookw {D = ($d)}
-	Debug.bookw {S = ($s)}
+	Debug.bookw { O = ($o)}
+	Debug.bookw { B = ($b)}
+	Debug.bookw { D = ($d)}
+	Debug.bookw { S = ($s)}
 
 	${selfns}::O set $o
 	${selfns}::B set $b
@@ -414,10 +446,11 @@ snit::widgetadaptor ::bookw {
 
     variable mytoken -array {}  ; # Map image PATHs to the associated
 				  # TOKEN in the strip of images.
+    variable mypath  -array {}  ; # Map tokens back to their image PATHs.
     variable myorder -array {}  ; # Map image PATHs to the associated
 				  # order in the strip of images, and
-				  # chart of page brightness, and the
-				  # reverse.
+				  # chart of page brightness,
+    variable myopath -array {}  ; # Map serial order to image PATH.
     variable mystat  -array {}  ; # Map image PATHs to the associated
 				  # page statistics.
 

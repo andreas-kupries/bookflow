@@ -81,7 +81,8 @@ snit::widgetadaptor ::bookw {
 
     method Widgets {} {
 	# Chart of brightness values for the page images.
-	rbc::graph $win.chart -height 100
+	#rbc::graph $win.chart -height 100
+	rbc::graph $win.chart -height 400
 
 	$win.chart axis configure y          -min 0 -max 256
 	$win.chart axis configure y2 -hide 0;# -min 40 -max 160 -title Pulse -stepsize 20
@@ -89,6 +90,7 @@ snit::widgetadaptor ::bookw {
 	rbc::vector create ${selfns}::O ; # X-axis, page serial, ordering
 	rbc::vector create ${selfns}::B ; # page brightness
 	rbc::vector create ${selfns}::D ; # page brightness differences
+	rbc::vector create ${selfns}::S ; # page brightness std deviation
 
 	$win.chart element create b \
 	    -xdata ${selfns}::O \
@@ -98,6 +100,10 @@ snit::widgetadaptor ::bookw {
 	    -xdata ${selfns}::O \
 	    -ydata ${selfns}::D \
 	    -mapy y2 -color red
+	$win.chart element create bv \
+	    -xdata ${selfns}::O \
+	    -ydata ${selfns}::S \
+	    -color orange
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -361,26 +367,30 @@ snit::widgetadaptor ::bookw {
 
 	set o {}
 	set b {}
+	set s {}
 	set l {}
-	foreach s [lsort -dict [array names myorder s,*]] {
-	    set serial [lindex [split $s ,] end]
-	    set path $myorder($s)
+	foreach key [lsort -dict [array names myorder s,*]] {
+	    set serial [lindex [split $key ,] end]
+	    set path $myorder($key)
 	    if {![info exists mystat($path)]} continue
-	    lassign $mystat($path) _ _ v _ _ _ _ _
-	    # brightness = v = mean
+	    lassign $mystat($path) _ _ mean _ _ stddev _ _
+	    # brightness = mean.
 	    lappend o $serial
-	    lappend b $v
-	    lappend d [expr {($l eq {}) ? 0 : ($v - $l)}]
-	    set l $v
+	    lappend b $mean
+	    lappend s $stddev
+	    lappend d [expr {($l eq {}) ? 0 : ($mean - $l)}]
+	    set l $mean
 	}
 
 	Debug.bookw {O = ($o)}
 	Debug.bookw {B = ($b)}
 	Debug.bookw {D = ($d)}
+	Debug.bookw {S = ($s)}
 
 	${selfns}::O set $o
 	${selfns}::B set $b
 	${selfns}::D set $d
+	${selfns}::S set $s
 
 	Debug.bookw {/}
 	return

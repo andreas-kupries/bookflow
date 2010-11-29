@@ -85,7 +85,7 @@ proc ::bookflow::Widgets {} {
 
     widget::toolbar .toolbar
     ttk::notebook   .books -style VerticalTabsLeft.TNotebook
-    ::widget::log   .log -width 120
+    ::widget::log   .log -width 120 -height 2
 
     .toolbar add button exit -text Exit -command ::exit -separator 1
     return

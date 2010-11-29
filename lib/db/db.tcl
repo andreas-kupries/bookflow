@@ -46,7 +46,7 @@ snit::type ::bookflow::db {
 	set ok [expr {[Has $db bookflow] &&
 		      [Has $db book] &&
 		      [Has $db image] &&
-		      [Has $db brightness]}]
+		      [Has $db statistics]}]
 	$db close
 	return $ok
     }

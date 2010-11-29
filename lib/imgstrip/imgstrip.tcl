@@ -10,9 +10,7 @@
 package require Tcl 8.5
 package require widget::scrolledwindow
 package require treectrl
-#package require uevent::onidle
 package require snit
-#package require struct::set
 package require debug::snit
 package require debug
 package require syscolor
@@ -45,8 +43,6 @@ snit::widgetadaptor ::img::strip {
     constructor {args} {
 	Debug.img/strip {}
 	installhull using widget::scrolledwindow -borderwidth 1 -relief sunken
-
-	#install myselchanged using uevent::onidle ${selfns}::SC [mymethod SelectionChanged]
 
 	$self Widgets
 	$self Layout
@@ -229,12 +225,12 @@ snit::widgetadaptor ::img::strip {
 
 	bindtags $mytree [list $mytree TreeCtrl [winfo toplevel $mytree] all]
 
-	#$mytree notify bind $mytree <ActiveItem> [mymethod ChangeActiveItem %p %c]
-	#$mytree notify bind $mytree <Selection>  [mymethod Selection]
+	$mytree notify bind $mytree <ActiveItem> [mymethod ChangeActiveItem %p %c]
+	$mytree notify bind $mytree <Selection>  [mymethod Selection]
 
-	#bind $mytree <Double-1> [mymethod Action        %x %y]
-	#bind $mytree <3>        [mymethod Context %X %Y %x %y]
-	#bind $win    <FocusIn>  [mymethod Focus]
+	bind $mytree <Double-1> [mymethod Action        %x %y]
+	bind $mytree <3>        [mymethod Context %X %Y %x %y]
+	bind $win    <FocusIn>  [mymethod Focus]
 
 	$mytree column create
 	return
@@ -298,10 +294,47 @@ snit::widgetadaptor ::img::strip {
     }
 
     # ### ### ### ######### ######### #########
-    ## show helper.
+    ##
 
-    # ### ### ### ######### ######### #########
-    ## NEW helpers
+    method ChangeActiveItem {previous current} {
+	Debug.img/strip {}
+
+	$mytree see $current
+	return
+    }
+
+    method Focus {} {
+	Debug.img/strip {==> $mytree}
+	focus $mytree
+	return
+    }
+
+    method Context {x y wx wy} {
+	set idata [$mytree identify $wx $wy]
+	Debug.img/strip {[list ==> $idata]}
+
+	lassign $idata type id
+	event generate $win <<Context>> -data [list $x $y $id]
+	return
+    }
+
+    method Action {x y} {
+	set idata [$mytree identify $x $y]
+	Debug.img/strip {[list ==> $idata]}
+
+	lassign $idata  type id
+	if {$type ne "item"} return
+
+	event generate $win <<Action>> -data $id
+	return
+    }
+
+    method Selection {} {
+	Debug.img/strip {}
+	event generate $win <<SelectionChanged>> \
+	    -data [$mytree selection get]
+	return
+    }
 
     # ### ### ### ######### ######### #########
 
@@ -385,17 +418,8 @@ snit::widgetadaptor ::img::strip {
     # ### ### ### ######### ######### #########
     ## State
 
-    variable myimages {}       ; # List of images shown
-    variable myitem  -array {} ; # image -> item
-    variable myimage -array {} ; # item -> image
-    variable mydata  -array {} ; # item -> list (type, data), type in {photo,text}
     variable mywidth  {} ; # Strip width, derived from first image
     variable myheight {} ; # Strip height, derived from first image
-    variable mydefer 0
-
-    variable  myselection  {}    ; # Set of currently selected images.
-    variable  mylastsel    {}
-    component myselchanged
 
     component mytree
 

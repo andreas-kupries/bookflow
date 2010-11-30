@@ -179,6 +179,13 @@ snit::widgetadaptor ::img::strip {
 	return $res
     }
 
+    method {selection set} {token} {
+	$mytree selection clear
+	$mytree selection add $token
+	$mytree see $token
+	return
+    }
+
     # ### ### ### ######### ######### #########
     ## Internals
 

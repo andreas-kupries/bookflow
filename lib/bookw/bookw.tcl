@@ -92,18 +92,29 @@ snit::widgetadaptor ::bookw {
 	rbc::vector create ${selfns}::D ; # page brightness differences
 	rbc::vector create ${selfns}::S ; # page brightness std deviation
 
+	# Chart: Page brightness
 	$win.chart element create b \
 	    -xdata ${selfns}::O \
 	    -ydata ${selfns}::B \
-	    -color blue
+	    -color blue -symbol none -label B
+
+	# Chart: Page brightness delta to previous
 	$win.chart element create bd \
 	    -xdata ${selfns}::O \
 	    -ydata ${selfns}::D \
-	    -mapy y2 -color red
+	    -mapy y2 -color red -symbol none -label D
+
+	# Chart: Page brightness standard deviation.
 	$win.chart element create bv \
 	    -xdata ${selfns}::O \
 	    -ydata ${selfns}::S \
-	    -color orange
+	    -color orange -symbol none -label S
+
+	# Chart: Vertical line for current selection.
+	# Starting outside of the axes = invisible.
+	$win.chart marker create line -name selection \
+	    -fill green -outline green \
+	    -coords {-1 -Inf -1 Inf}
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -125,6 +136,7 @@ snit::widgetadaptor ::bookw {
 	bind $win.strip <<SelectionChanged>> \
 	    [mymethod Selection %d]
 
+	bind $win.chart <1> [mymethod ChartSelection %x %y]
 	return
     }
 
@@ -133,16 +145,35 @@ snit::widgetadaptor ::bookw {
     method Selection {selection} {
 	Debug.bookw {}
 
+	if {![llength $selection]} return
+
 	set token [lindex $selection 0]
 	set path  $mypath($token)
 	set at    $myorder($path)
 
 	Debug.bookw { | $token -> $path -> $at}
 
-	# WRONG. Create only on first call, later move the marker. Or
-	# delete and recreate.
-	$win.chart marker create line -fill black \
+	# Move the seletion marker in the chart to the proper
+	# location.
+	$win.chart marker configure selection \
 	    -coords [list $at -Inf $at Inf]
+
+	Debug.bookw {/}
+	return
+    }
+
+    method ChartSelection {x y} {
+	Debug.bookw {}
+
+	# Screen to graph coordinates, to image path, to the token
+	# used by the strip.
+	set at [expr {int([$win.chart axis invtransform x $x])}]
+	set path $myopath($at)
+	set token $mytoken($path)
+
+	# Set the selection in the strip, this comes back to us via
+	# 'Selection' above, which then updates the chart.
+	$win.strip selection set $token
 
 	Debug.bookw {/}
 	return

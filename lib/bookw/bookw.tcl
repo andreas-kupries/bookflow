@@ -17,6 +17,7 @@ package require blog
 package require img::png
 package require rbc
 package require uevent::onidle
+package require math::statistics
 
 # ### ### ### ######### ######### #########
 ## Tracing
@@ -115,6 +116,31 @@ snit::widgetadaptor ::bookw {
 	$win.chart marker create line -name selection \
 	    -fill green -outline green \
 	    -coords {-1 -Inf -1 Inf}
+
+
+	rbc::vector create ${selfns}::XB
+	rbc::vector create ${selfns}::YB
+	rbc::vector create ${selfns}::XBD
+	rbc::vector create ${selfns}::YBD
+	rbc::vector create ${selfns}::XV
+	rbc::vector create ${selfns}::YV
+
+	$win.chart element create boutlier \
+	    -xdata ${selfns}::XB \
+	    -ydata ${selfns}::YB \
+	    -color blue -symbol circle -label {} -linewidth 0
+
+	$win.chart element create bdoutlier \
+	    -xdata ${selfns}::XBD \
+	    -ydata ${selfns}::YBD \
+	    -color red -symbol diamond -label {} -linewidth 0
+
+	$win.chart element create bvoutlier \
+	    -xdata ${selfns}::XV \
+	    -ydata ${selfns}::YV \
+	    -color orange -symbol square -label {} -linewidth 0
+
+
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -455,8 +481,61 @@ snit::widgetadaptor ::bookw {
 	${selfns}::D set $d
 	${selfns}::S set $s
 
+
+
+	# Outliers, computed from global statistics of the page brightness.
+
+	# Show 2-sigma outliers for page brightness
+	lassign [Outlier $o $b] oo bo
+	${selfns}::XB set $oo
+	${selfns}::YB set $bo
+
+	# Show 2-sigma outliers for page brightness differences
+	lassign [Outlier $o $d] oo do
+	${selfns}::XBD set $oo
+	${selfns}::YBD set $do
+
+	# Show 2-sigma outliers for page brightness stddev
+	lassign [DownOutlier $o $s] oo vo
+	${selfns}::XV set $oo
+	${selfns}::YV set $vo
+
 	Debug.bookw {/}
 	return
+    }
+
+    # Find the t-sigma outliers above and below the yseries average.
+    proc Outlier {xseries yseries {t 2}} {
+	lassign [math::statistics::basic-stats $yseries] \
+	    avg min max n stddev var pstddev pvar
+
+	set t [expr {$t * $stddev}]
+	set xo {}
+	set yo {}
+	foreach x $xseries y $yseries {
+	    if {abs($y - $avg) < $t} continue
+	    lappend xo $x
+	    lappend yo $y
+	}
+
+	return [list $xo $yo]
+    }
+
+    # Find the t-sigma outliers below the yseries average
+    proc DownOutlier {xseries yseries {t 2}} {
+	lassign [math::statistics::basic-stats $yseries] \
+	    avg min max n stddev var pstddev pvar
+
+	set t [expr {$t * $stddev}]
+	set xo {}
+	set yo {}
+	foreach x $xseries y $yseries {
+	    if {($avg - $y) < $t} continue
+	    lappend xo $x
+	    lappend yo $y
+	}
+
+	return [list $xo $yo]
     }
 
     # ### ### ### ######### ######### #########

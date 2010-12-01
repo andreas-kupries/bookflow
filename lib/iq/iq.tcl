@@ -31,12 +31,19 @@ snit::type ::iq {
     # ### ### ### ######### ######### #########
     ##
 
-    constructor {limit} {
+    option -emptycmd \
+	-default {}
+
+    # ### ### ### ######### ######### #########
+    ##
+
+    constructor {limit args} {
 	Debug.iq {}
 
 	set mylimit $limit
 	set myqueue [struct::queue ${selfns}::Q]
 
+	$self configurelist $args
 	Debug.iq {/}
 	return
     }
@@ -76,6 +83,7 @@ snit::type ::iq {
 	if {($myflight < $mylimit) && [$myqueue size]} {
 	    lassign [$myqueue get] pattern cmd
 	    $self Dispatch $pattern $cmd
+	    $self NotifyEmpty
 	}
 
 	uplevel #0 [list {*}$cmd $tuple]
@@ -85,6 +93,13 @@ snit::type ::iq {
     }
 
     # ### ### ### ######### ######### #########
+
+    method NotifyEmpty {args} {
+	if {![$myqueue size]} return
+	if {![llength $options(-empty)]} return
+	after idle [list after 0 [list {*}$options(-empty) $self]]
+	return
+    }
 
     # ### ### ### ######### ######### #########
     ##

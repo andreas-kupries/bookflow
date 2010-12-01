@@ -17,6 +17,7 @@ package require blog
 package require img::png
 package require rbc
 package require uevent::onidle
+package require struct::set
 package require math::statistics
 package require bookflow::thumbnail ; # Request encapsulation
 
@@ -117,12 +118,17 @@ snit::widgetadaptor ::bookw {
 	$win.chart marker create line -name selection \
 	    -fill green -outline green \
 	    -coords {-1 -Inf -1 Inf}
+	$win.chart marker create text -name tselectionr \
+	    -coords {-1 10} -text {} -outline green -anchor w
+	$win.chart marker create text -name tselectionl \
+	    -coords {-1 250} -text {} -outline green -anchor e
 
-
+	# Chart: Scatter plot for the points of interest. Enough for
+	# all the regular chart plots.
 	rbc::vector create ${selfns}::XB
 	rbc::vector create ${selfns}::YB
-	rbc::vector create ${selfns}::XBD
-	rbc::vector create ${selfns}::YBD
+	rbc::vector create ${selfns}::XD
+	rbc::vector create ${selfns}::YD
 	rbc::vector create ${selfns}::XV
 	rbc::vector create ${selfns}::YV
 
@@ -131,17 +137,15 @@ snit::widgetadaptor ::bookw {
 	    -ydata ${selfns}::YB \
 	    -color blue -symbol circle -label {} -linewidth 0
 
-	$win.chart element create bdoutlier \
-	    -xdata ${selfns}::XBD \
-	    -ydata ${selfns}::YBD \
-	    -color red -symbol diamond -label {} -linewidth 0
+	$win.chart element create doutlier \
+	    -xdata ${selfns}::XD \
+	    -ydata ${selfns}::YD \
+	    -color red -symbol square -label {} -linewidth 0 -mapy y2
 
-	$win.chart element create bvoutlier \
+	$win.chart element create voutlier \
 	    -xdata ${selfns}::XV \
 	    -ydata ${selfns}::YV \
-	    -color orange -symbol square -label {} -linewidth 0
-
-
+	    -color orange -symbol diamond -label {} -linewidth 0
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -180,10 +184,17 @@ snit::widgetadaptor ::bookw {
 
 	Debug.bookw { | $token -> $path -> $at}
 
-	# Move the seletion marker in the chart to the proper
-	# location.
+	# Move the seletion marker and its associated texts (all in
+	# the chart) to the new location.
+
 	$win.chart marker configure selection \
 	    -coords [list $at -Inf $at Inf]
+
+	$win.chart marker configure tselectionr \
+	    -coords [list $at 10] -text $at
+
+	$win.chart marker configure tselectionl \
+	    -coords [list $at 250] -text $at
 
 	Debug.bookw {/}
 	return
@@ -241,7 +252,7 @@ snit::widgetadaptor ::bookw {
 
 	set token [$win.strip new]
 	$win.strip itemconfigure $token \
-	    -label   $path \
+	    -label   "$path ($serial)" \
 	    -order   $serial \
 	    -message {Waiting for thumbnail...}
 
@@ -505,20 +516,25 @@ snit::widgetadaptor ::bookw {
 
 	# Outliers, computed from global statistics of the page brightness.
 
-	# Show 2-sigma outliers for page brightness
-	lassign [Outlier $o $b] oo bo
-	${selfns}::XB set $oo
-	${selfns}::YB set $bo
+	# Get 2-sigma outliers for page brightness
+	lassign [Outlier $o $b] bx by
+	# Get 2-sigma outliers for page brightness differences
+	lassign [Outlier $o $d] dx dy
+	# Get 2-sigma outliers for page brightness stddev
+	lassign [DownOutlier $o $s] vx vy
 
-	# Show 2-sigma outliers for page brightness differences
-	lassign [Outlier $o $d] oo do
-	${selfns}::XBD set $oo
-	${selfns}::YBD set $do
+	set ix [lsort -integer [struct::set union $vx [struct::set intersect $bx $dx]]]
+	set dict {} ; foreach x $o y $b { lappend dict $x $y }
+	set iy {} ; foreach x $ix { lappend iy [dict get $dict $x] }
 
-	# Show 2-sigma outliers for page brightness stddev
-	lassign [DownOutlier $o $s] oo vo
-	${selfns}::XV set $oo
-	${selfns}::YV set $vo
+	${selfns}::XB set $ix
+	${selfns}::YB set $iy
+
+	#${selfns}::XD set $dx
+	#${selfns}::YD set $dy
+
+	#${selfns}::XV set $vx
+	#${selfns}::YV set $vy
 
 	Debug.bookw {/}
 	return

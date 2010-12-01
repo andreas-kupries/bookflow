@@ -452,6 +452,11 @@ snit::widgetadaptor ::img::strip {
 	set ourfillcolor     [list \
 				  [syscolor::highlight] {selected focus} \
 				  gray                  {selected !focus}]
+
+	set ourtextfillcolor [list [syscolor::highlightText] {selected focus}]
+	set ourfillcolor     [list \
+				  \#ff8800 {selected focus} \
+				  gray     {selected !focus}]
     }
 
     ##

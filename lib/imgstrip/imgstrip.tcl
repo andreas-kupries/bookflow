@@ -19,6 +19,9 @@ debug off    img/strip
 #debug on     img/strip
 debug prefix img/strip {[list [::debug::snit::call]] }
 
+# ### ### ### ######### ######### #########
+##
+
 snit::widgetadaptor ::img::strip {
 
     # ### ### ### ######### ######### #########
@@ -182,7 +185,7 @@ snit::widgetadaptor ::img::strip {
     method {selection set} {token} {
 	$mytree selection clear
 	$mytree selection add $token
-	$mytree see $token
+	$mytree activate $token
 	return
     }
 

@@ -18,6 +18,7 @@ package require img::png
 package require rbc
 package require uevent::onidle
 package require math::statistics
+package require bookflow::thumbnail ; # Request encapsulation
 
 # ### ### ### ######### ######### #########
 ## Tracing
@@ -162,7 +163,7 @@ snit::widgetadaptor ::bookw {
 	bind $win.strip <<SelectionChanged>> \
 	    [mymethod Selection %d]
 
-	bind $win.chart <1> [mymethod ChartSelection %x %y]
+	bind $win.chart <1> [mymethod ChartSelection %x]
 	return
     }
 
@@ -188,12 +189,18 @@ snit::widgetadaptor ::bookw {
 	return
     }
 
-    method ChartSelection {x y} {
+    method ChartSelection {x} {
 	Debug.bookw {}
 
-	# Screen to graph coordinates, to image path, to the token
-	# used by the strip.
-	set at [expr {int([$win.chart axis invtransform x $x])}]
+	# Screen to graph coordinates, then selewct the associated image.
+	$self Select [expr {int([$win.chart axis invtransform x $x])}]
+	return
+    }
+
+    method Select {at} {
+	# x coordinate to image path, to the token used by the strip.
+
+	Debug.bookw {}
 	set path $myopath($at)
 	set token $mytoken($path)
 
@@ -247,6 +254,18 @@ snit::widgetadaptor ::bookw {
 	$self GetThumbnail  $path
 	$self GetStatistics $path
 
+	if {$mycountimages < 2} {
+	    $self Select 0
+	    # TODO : GetRegular... (image)
+	} else {
+	    # Save requests for regular images... These are trickled
+	    # into the system when the thumbnails are all done
+	    # ... Later, when selections change we hopefully have all
+	    # the images to display already ... Might need a
+	    # high-priority channel for when selection changes and
+	    # images are still trickling through.
+	}
+
 	$win.chart axis configure x -min 0 -max $mycountimages
 
 	Debug.bookw {/}
@@ -297,11 +316,13 @@ snit::widgetadaptor ::bookw {
     method GetThumbnail {path} {
 	Debug.bookw {}
 
+	set request [bookflow::thumbnail::request $path 160]
+
 	# doc/interaction_pci.txt (5).
-	$mysb bind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
+	$mysb bind take $request [mymethod InvalidThumbnail]
 
 	# doc/interaction_pci.txt (4). Uses rate-limiting queue
-	$mytqueue put [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+	$mytqueue put $request [mymethod HaveThumbnail]
 
 	Debug.bookw {/}
 	return
@@ -309,10 +330,10 @@ snit::widgetadaptor ::bookw {
 
     # doc/interaction_pci.txt (5).
     method InvalidThumbnail {tuple} {
-	# tuple = (THUMBNAIL image-path thumbnail-path)
+	# tuple = (THUMBNAIL image-path size thumbnail-path)
 	Debug.bookw {}
 
-	lassign $tuple _ path thumb
+	lassign $tuple _ path size thumb
 
 	# Ignore invalidation of a thumbnail when its image is not
 	# used here any longer.
@@ -331,7 +352,7 @@ snit::widgetadaptor ::bookw {
 	$win.strip itemconfigure $mytoken($path) \
 	    -message {Invalidated...}
 
-	$mytqueue put [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+	$mytqueue put [bookflow::thumbnail::request $path $size] [mymethod HaveThumbnail]
 
 	Debug.bookw {/}
 	return
@@ -339,11 +360,11 @@ snit::widgetadaptor ::bookw {
 
     # doc/interaction_pci.txt (4).
     method HaveThumbnail {tuple} {
-	# tuple = (THUMBNAIL image-path thumbnail-path)
+	# tuple = (THUMBNAIL image-path size thumbnail-path)
 	# Paths are relative to the project directory
 	Debug.bookw {}
 
-	lassign $tuple _ path thumb
+	lassign $tuple _ path size thumb
 
 	# Ignore the incoming thumbnail when its image is not used
 	# here any longer.
@@ -372,7 +393,6 @@ snit::widgetadaptor ::bookw {
 	Debug.bookw {/}
 	return
     }
-
 
     # ### ### ### ######### ######### #########
 

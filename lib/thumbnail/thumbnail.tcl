@@ -33,116 +33,138 @@ debug off    bookflow/thumbnail
 ## API & Implementation
 
 proc ::bookflow::thumbnail {} {
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail Watch}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail}
 
-    scoreboard take {AT *} [namespace code thumbnail::BEGIN]
+    scoreboard take {AT *} [namespace code thumbnail::Initialize]
 
     Debug.bookflow/thumbnail {/}
     return
 }
 
-proc ::bookflow::thumbnail::BEGIN {tuple} {
+proc ::bookflow::thumbnail::request {path size} {
+    return [list THUMBNAIL $path $size *]
+}
+
+# ### ### ### ######### ######### #########
+## Internals. Process initialization
+
+proc ::bookflow::thumbnail::Initialize {tuple} {
     # tuple = (AT project)
     # Put it back for the use of others.
     scoreboard put $tuple
-
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail BEGIN <$tuple>}
-
     lassign $tuple _ project
 
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail Initialize <$project>}
+
     # Monitor for thumbnail invalidation
-    # doc/interaction_pci.txt (1)
-    scoreboard take {!THUMBNAIL *} [namespace code [list INVALIDATE $project]]
+    WatchForInvalidation $project
 
     # Launch the tasks doing the actual resizing.
     variable max
     for {set i 0} {$i < $max} {incr i} {
-	task launch [list ::apply {{} {
+	task launch [list ::apply {{project} {
 	    package require bookflow::thumbnail
-	    bookflow::thumbnail::SCALER
-	}}]
+	    bookflow::thumbnail::ScalingTask $project
+	}} $project]
     }
 
     # Monitor for thumbnail creation requests.
-    # doc/interaction_pci.txt (2)
-    scoreboard bind missing {THUMBNAIL *} [namespace code [list MAKE $project]]
+    WatchForMisses $project
 
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail BEGIN/}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail Initialize/}
     return
 }
 
 # ### ### ### ######### ######### #########
-## Internals. Helper encapsulation directory structure.
+## Internals. Invalidation processing. See doc/interaction_pci.txt (1).
 
-proc ::bookflow::thumbnail::ThumbFullPath {project path} {
-    return $project/[ThumbPath $path]
+proc ::bookflow::thumbnail::WatchForInvalidation {project} {
+    # doc/interaction_pci.txt (1)
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail WatchForInvalidation}
+
+    scoreboard take {!THUMBNAIL *} [namespace code [list Invalidate $project]]
+
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail WatchForInvalidation}
+    return
 }
 
-proc ::bookflow::thumbnail::ThumbPath {path} {
-    return .bookflow/thumb/[file rootname $path].png
-}
-
-# ### ### ### ######### ######### #########
-## Internals. Thumbnail invalidation. See doc/interaction_pci.txt (1).
-
-proc ::bookflow::thumbnail::INVALIDATE {project tuple} {
+proc ::bookflow::thumbnail::Invalidate {project tuple} {
     # tuple = (!THUMBNAIL path)
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail INVALIDATE}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail Invalidate}
 
     lassign $tuple _ path
-    scoreboard takeall [list THUMBNAIL $path *] [namespace code [list RETRACT $project $path]]
+    scoreboard takeall [list THUMBNAIL $path *] [namespace code [list Cleanup $project $path]]
 
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail INVALIDATE/}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail Invalidate/}
     return
 }
 
-proc ::bookflow::thumbnail::RETRACT {project path tuples} {
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail RETRACT}
+proc ::bookflow::thumbnail::Cleanup {project path tuples} {
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail Cleanup}
 
     file delete [ThumbFullPath $project $path]
 
-    # Look for more invalidation requests
-    scoreboard take {!THUMBNAIL *} [namespace code [list INVALIDATE $project]]
+    WatchForInvalidation $project
 
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail RETRACT/}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail Cleanup/}
     return
 }
 
 # ### ### ### ######### ######### #########
-## Internals. Thumbnail creation. See doc/interaction_pci.txt (2).
+## Internals. Creation request handling. See doc/interaction_pci.txt (2).
 
-proc ::bookflow::thumbnail::MAKE {project pattern} {
-    # pattern = (THUMBNAIL path *)
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail MAKE}
+proc ::bookflow::thumbnail::WatchForMisses {project} {
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail WatchForMisses}
 
-    lassign $pattern _ path
+    # doc/interaction_pci.txt (2)
+    scoreboard bind missing {THUMBNAIL *} [namespace code [list MakeImage $project]]
 
-    set thumbfull [ThumbFullPath $project $path]
-    set thumb     [ThumbPath $path]
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail WatchForMisses}
+    return
+}
 
-    if {[file exists $thumbfull]} {
-	# Thumbnail already exists in the filesystem cache, simply
-	# make it available.
+proc ::bookflow::thumbnail::MakeImage {project pattern} {
+    # pattern = (THUMBNAIL path size *)
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail MakeImage}
 
-	scoreboard put [list THUMBNAIL $path $thumb]
-    } else {
-	# Thumbnail not known. Put in a request for the scaling tasks
-	# to generate it. This will also put the proper result into
-	# the scoreboard on completion.
+    lassign $pattern _ path size
 
-	scoreboard put [list SCALE $project/$path 160 $thumbfull \
-			    [list THUMBNAIL $path $thumb]]
+    set dst [Path $path $size]
+
+    if {[file exists $project/$dst]} {
+	# The requested image already exists in the filesystem cache,
+	# simply make it available.
+
+	Return $path $size $dst
+
+	Debug.bookflow/thumbnail {Bookflow::Thumbnail MakeImage/}
+	return
     }
 
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail MAKE/}
+    # The image is not known yet. Forward the request to the scaling
+    # tasks to create the desired image.
+
+    RequestCreation $path $size $dst
+
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail MakeImage/}
+    return
+}
+
+proc ::bookflow::thumbnail::Return {path size dst} {
+    scoreboard put [list THUMBNAIL $path $size $dst]
     return
 }
 
 # ### ### ### ######### ######### #########
-## Internals. Implementation of the resizing tasks.
+## Internals. Background tasks handling the actual scaling.
 
-proc ::bookflow::thumbnail::SCALER {} {
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail SCALER}
+proc ::bookflow::thumbnail::RequestCreation {path size dst} {
+    scoreboard put [list SCALE $path $size $dst]
+    return
+}
+
+proc ::bookflow::thumbnail::ScalingTask {project} {
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail ScalingTask}
 
     # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
@@ -156,29 +178,29 @@ proc ::bookflow::thumbnail::SCALER {} {
     package require img::jpeg
 
     # Start waiting for requests.
-    READY
+    ReadyForRequests $project
 
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail SCALER/}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail ScalingTask/}
     return
 }
 
-proc ::bookflow::thumbnail::READY {} {
+proc ::bookflow::thumbnail::ReadyForRequests {project} {
     # Wait for more requests.
-    scoreboard take {SCALE *} [namespace code SCALE]
+    scoreboard take {SCALE *} [namespace code [list ScaleImage $project]]
     return
 }
 
-proc ::bookflow::thumbnail::SCALE {tuple} {
-    # tuple = (SCALE path size dstpath result)
+proc ::bookflow::thumbnail::ScaleImage {project tuple} {
+    # tuple = (SCALE path size dstpath)
     # result = (THUMBNAIL path dstpath)
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail SCALE}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail ScaleImage}
 
     # Decode request
-    lassign $tuple _ path size dst result
+    lassign $tuple _ path size dst
 
     # Perform the scaling to requested size, reading jpeg, writing
     # png, using crimp internally.
-    set photo [image create photo -file $path]
+    set photo [image create photo -file $project/$path]
 
     set h [image height $photo]
     set w [image width  $photo]
@@ -193,18 +215,23 @@ proc ::bookflow::thumbnail::SCALE {tuple} {
     }
 
     crimp write 2tk $photo [crimp resize [crimp read tk $photo] $w $h]
-    file mkdir [file dirname $dst]
-    $photo write $dst -format png
+    file mkdir [file dirname $project/$dst]
+    $photo write $project/$dst -format png
     image delete $photo
 
-    # Push result
-    scoreboard put $result
+    Return $path $size $dst
 
-    # Wait for more requests.
-    READY
+    ReadyForRequests $project
 
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail SCALE/}
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail ScaleImage/}
     return
+}
+
+# ### ### ### ######### ######### #########
+## Internals. Path handling.
+
+proc ::bookflow::thumbnail::Path {path size} {
+    return .bookflow/thumb$size/[file rootname $path].png
 }
 
 # ### ### ### ######### ######### #########

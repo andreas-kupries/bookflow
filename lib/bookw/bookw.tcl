@@ -3,6 +3,12 @@
 
 # The main window for each book found in the project.
 
+# NOTES
+# (1) Consider moving the chart and attendant structures and methods
+#     into its own megawidget.
+# (2) Consider moving the thumbnail load handling into a helper class
+#     too. Re-usable for the regular images ?
+
 # ### ### ### ######### ######### #########
 ## Requisites
 
@@ -87,10 +93,10 @@ snit::widgetadaptor ::bookw {
 	#rbc::graph $win.chart -height 100
 	rbc::graph $win.chart -height 400
 
-	$win.chart axis configure y          -min 0 -max 256
-	$win.chart axis configure y2 -hide 0;# -min 40 -max 160 -title Pulse -stepsize 20
+	$win.chart axis configure y  -min 0 -max 256
+	$win.chart axis configure y2 -hide 0
 
-	rbc::vector create ${selfns}::O ; # X-axis, page serial, ordering
+	rbc::vector create ${selfns}::O ; # X-axis, page serial, ordering.
 	rbc::vector create ${selfns}::B ; # page brightness
 	rbc::vector create ${selfns}::D ; # page brightness differences
 	rbc::vector create ${selfns}::S ; # page brightness std deviation
@@ -135,17 +141,20 @@ snit::widgetadaptor ::bookw {
 	$win.chart element create boutlier \
 	    -xdata ${selfns}::XB \
 	    -ydata ${selfns}::YB \
-	    -color blue -symbol circle -label {} -linewidth 0
+	    -color blue -symbol circle -label {} \
+	    -linewidth 0
 
 	$win.chart element create doutlier \
 	    -xdata ${selfns}::XD \
 	    -ydata ${selfns}::YD \
-	    -color red -symbol square -label {} -linewidth 0 -mapy y2
+	    -color red -symbol square -label {} \
+	    -linewidth 0 -mapy y2
 
 	$win.chart element create voutlier \
 	    -xdata ${selfns}::XV \
 	    -ydata ${selfns}::YV \
-	    -color orange -symbol diamond -label {} -linewidth 0
+	    -color orange -symbol diamond -label {} \
+	    -linewidth 0
 
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
@@ -489,6 +498,8 @@ snit::widgetadaptor ::bookw {
 	set d {}
 	set l {}
 
+	set bxy {}
+
 	foreach serial [lsort -dict [array names myopath]] {
 	    set path $myopath($serial)
 	    if {![info exists mystat($path)]} continue
@@ -500,6 +511,9 @@ snit::widgetadaptor ::bookw {
 	    lappend s $stddev
 	    lappend d [expr {($l eq {}) ? 0 : ($mean - $l)}]
 	    set l $mean
+
+	    # dict form of x/y, mapping x to y, for the fusing below.
+	    lappend bxy $serial $mean 
 	}
 
 	Debug.bookw { O = ($o)}
@@ -512,8 +526,6 @@ snit::widgetadaptor ::bookw {
 	${selfns}::D set $d
 	${selfns}::S set $s
 
-
-
 	# Outliers, computed from global statistics of the page brightness.
 
 	# Get 2-sigma outliers for page brightness
@@ -523,9 +535,13 @@ snit::widgetadaptor ::bookw {
 	# Get 2-sigma outliers for page brightness stddev
 	lassign [DownOutlier $o $s] vx vy
 
+	# Fuse the results. Points of interest are the locations of
+	# stddev outliers and the locations where both brightness and
+	# brightness deltas indicate outliers. Compute the y locations
+	# for these using the bxy map.
+
 	set ix [lsort -integer [struct::set union $vx [struct::set intersect $bx $dx]]]
-	set dict {} ; foreach x $o y $b { lappend dict $x $y }
-	set iy {} ; foreach x $ix { lappend iy [dict get $dict $x] }
+	set iy {} ; foreach x $ix { lappend iy [dict get $bxy $x] }
 
 	${selfns}::XB set $ix
 	${selfns}::YB set $iy

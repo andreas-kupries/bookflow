@@ -34,7 +34,8 @@ package require debug
     return
 } ::}
 
-debug on bookflow
+debug off bookflow
+#debug on bookflow
 Debug.bookflow {Starting the application...}
 
 # # ## ### ##### ######## ############# #####################

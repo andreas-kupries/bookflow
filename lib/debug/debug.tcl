@@ -44,17 +44,19 @@ proc ::debug::debug {tag message {level 1}} {
     # Resolve variables references and command invokations embedded
     # into the message with plain text.
     set code [catch {
-	uplevel 1 [list ::subst -nobackslashes [list $themessage]]
+	uplevel 1 [list ::subst -nobackslashes $themessage]
     } result eo]
 
     if {$code} {
-	set x [info level -1]
+	if {[catch {
+	    set x [info level -1]
+	}]} { set x GLOBAL }
 	puts -nonewline $fd @@[string map {\n \\n \r \\r} "(DebugError from $tag [if {[string length $x] < 1000} {set x} else {set x "[string range $x 0 200]...[string range $x end-200 end]"}] ($eo)):"]
     } else {
 	if {[string length $result] > 4096} {
 	    set result "[string range $result 0 2048]...(truncated) ... [string range $result end-2048 end]"
 	}
-	puts $fd "$tag @@ [join [split $result \n] "\n$tag @+  "]"
+	puts $fd "$tag | [join [split $result \n] "\n$tag |  "]"
     }
     return
 }
@@ -106,6 +108,8 @@ proc ::debug::prefix {tag {theprefix {}}} {
 
 # turn on debugging for tag
 proc ::debug::on {tag {level ""} {fd stderr}} {
+    variable active
+    set active($tag) 1
     level $tag $level $fd
     interp alias {} Debug.$tag {} ::debug::debug $tag
     return
@@ -113,6 +117,8 @@ proc ::debug::on {tag {level ""} {fd stderr}} {
 
 # turn off debugging for tag
 proc ::debug::off {tag {level ""} {fd stderr}} {
+    variable active
+    set active($tag) 1
     level $tag $level $fd
     interp alias {} Debug.$tag {} ::debug::noop
     return
@@ -150,6 +156,44 @@ namespace eval debug {
     namespace export -clear *
     namespace ensemble create -subcommands {}
 }
+
+# ### ### ### ######### ######### #########
+## Communication setup for concurrent tasks.
+## Thread based.
+
+namespace eval ::debug::thread {}
+
+proc ::debug::thread::link {main} {
+    variable ::debug::detail
+    variable ::debug::prefix
+
+    # Import main's status.
+    array set detail [thread::send $main {array get ::debug::detail}]
+    array set prefix [thread::send $main {array get ::debug::prefix}]
+    array set active [thread::send $main {array get ::debug::active}]
+    # We do not import the channels. Cannot share them among threads,
+    # only transfer.
+
+    # Replicate (in)active status of the tags.
+    foreach {t a} [array get active] {
+	if {$a} {
+	    interp alias {} Debug.$t {} ::debug::debug $t
+	} else {
+	    interp alias {} Debug.$t {} ::debug::noop
+	}
+    }
+    return
+}
+
+# ### ### ### ######### ######### #########
+## Look for the magic of package task, and if found import the main's
+## status to configure our settings.
+
+::apply {{} {
+    if {![info exists ::task::type]} return
+    ::debug::${::task::type}::link $::task::main
+    return
+}}
 
 # ### ### ### ######### ######### #########
 ## Ready

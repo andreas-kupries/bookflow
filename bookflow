@@ -18,6 +18,27 @@ lappend auto_path [file normalize [file join [file dirname [info script]] lib]]
 #puts stdout *\t[join $::auto_path \n*\t]
 
 package require Tcl 8.5  ; # Required runtime.
+
+# # ## ### ##### ######## ############# #####################
+## Global settings for tracing.
+
+package require Thread
+package require debug
+::apply {{} {
+    set    parts {}
+    append parts {[thread::id] | }
+    append parts {[clock format [clock seconds]] | }
+    append parts {[format %3d [info level]] | }
+    append parts {[string repeat {    } [info level]] | }
+    debug prefix :: $parts
+    return
+} ::}
+
+debug on bookflow
+Debug.bookflow {Starting the application...}
+
+# # ## ### ##### ######## ############# #####################
+
 package require bookflow ; # Main functionality.
 
 # # ## ### ##### ######## ############# #####################

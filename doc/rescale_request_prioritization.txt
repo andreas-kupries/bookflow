@@ -1,0 +1,44 @@
+Handling of regular images by the book manager.
+===============================================
+
+Two places/situations will request a regular sized page image.
+
+    (i) selection, i.e. when page X is selected, system gets its
+	image.
+
+    (ii) background pre-generation, i.e. for all images found we
+	 request them once, to ensure that they are created if they do
+	 not exist yet.
+
+Of these two (i) is a high-priority thing, as the user wishes to see
+the image. It is also something we must be able to cancel. I.e. when
+the user switches to a different page and the image for the previously
+current one has not arrived yet then this old request should either
+get normal priority or not be done at all.
+
+Situation (ii) on the other hand is something which can be defered
+until after all the thumbnails have been done. This one should look
+towards (i) to know which pages are already done while the user was
+browsing.
+
+The problem with (i) and cancellation is that the user is, in
+principle, isolated from the internals of the producers. Miss the
+requested tuple, and the producer automatically starts the generation
+process. And the consumer automatically waits for the result/return
+event.
+
+As such a switch to a different image will simply make another
+request, if the data was missing.
+
+Prioritization has happen in the producer. I.e. the producer, knowing
+that a particular request has priority then takes the necessary
+actions to get it into the scaling tasks as fast as possible, if that
+is required at all.
+
+The dispatcher then also has to keep track of the requests waiting for
+execution, so that it can take lower-priority request back to make
+place for the high priority one. And putting them back when it knows
+that the high-priority request is taken and executing.
+
+... side note ... Make dataflow diagrams for the producer internals,
+showing direct and indirect control flow ...

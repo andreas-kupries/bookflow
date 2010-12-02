@@ -20,7 +20,7 @@ package require struct::queue
 # ### ### ### ######### ######### #########
 ## Tracing
 
-debug prefix iq {[::debug::snit::call]}
+debug prefix iq {[::debug::snit::call] }
 debug off    iq
 #debug on     iq
 
@@ -96,8 +96,8 @@ snit::type ::iq {
 
     method NotifyEmpty {args} {
 	if {![$myqueue size]} return
-	if {![llength $options(-empty)]} return
-	after idle [list after 0 [list {*}$options(-empty) $self]]
+	if {![llength $options(-emptycmd)]} return
+	after idle [list after 0 [list {*}$options(-emptycmd) $self]]
 	return
     }
 

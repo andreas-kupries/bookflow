@@ -154,11 +154,8 @@ proc ::bookflow::bright::RESULT {path statistics} {
 ## Internals. Implementation of the calculation tasks.
 
 proc ::bookflow::bright::STATISTICS {project} {
-    Debug.bookflow/bright {Bookflow::Bright STATISTICS}
-
-    # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    #debug on     bookflow/bright
+    Debug.bookflow/bright {Bookflow::Bright STATISTICS}
 
     # Requisites for the task
     package require bookflow::bright

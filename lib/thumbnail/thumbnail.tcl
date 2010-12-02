@@ -164,11 +164,8 @@ proc ::bookflow::thumbnail::RequestCreation {path size dst} {
 }
 
 proc ::bookflow::thumbnail::ScalingTask {project} {
-    Debug.bookflow/thumbnail {Bookflow::Thumbnail ScalingTask}
-
-    # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    #debug on     bookflow/thumbnail
+    Debug.bookflow/thumbnail {Bookflow::Thumbnail ScalingTask}
 
     # Requisites for the task
     package require bookflow::thumbnail

@@ -51,12 +51,8 @@ proc ::bookflow::verify::RUN {tuple} {
 }
 
 proc ::bookflow::verify::TASK {} {
-    Debug.bookflow/verify {Bookflow::Verify TASK}
-
-    # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    debug off    bookflow/verify
-    #debug on     bookflow/verify
+    Debug.bookflow/verify {Bookflow::Verify TASK}
 
     # Requisites for the task
     package require scoreboard

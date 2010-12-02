@@ -17,7 +17,7 @@ package require syscolor
 
 debug off    img/strip
 #debug on     img/strip
-debug prefix img/strip {[list [::debug::snit::call]] }
+debug prefix img/strip {[::debug::snit::call] }
 
 # ### ### ### ######### ######### #########
 ##

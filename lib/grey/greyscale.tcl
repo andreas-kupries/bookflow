@@ -143,11 +143,8 @@ proc ::bookflow::greyscale::MAKE {project pattern} {
 ## Internals. Implementation of the resizing tasks.
 
 proc ::bookflow::greyscale::CONVERT {} {
-    Debug.bookflow/greyscale {Bookflow::Greyscale CONVERT}
-
-    # TODO :: Have debug work like log and reconfigure itself within a task.
     package require debug
-    #debug on     bookflow/greyscale
+    Debug.bookflow/greyscale {Bookflow::Greyscale CONVERT}
 
     # Requisites for the task
     package require bookflow::greyscale

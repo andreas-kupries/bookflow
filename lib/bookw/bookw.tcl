@@ -30,7 +30,7 @@ package require bookflow::thumbnail ; # Request encapsulation
 # ### ### ### ######### ######### #########
 ## Tracing
 
-debug prefix bookw {[::debug::snit::call]}
+debug prefix bookw {[::debug::snit::call] }
 debug off    bookw
 #debug on     bookw
 

@@ -81,8 +81,8 @@ snit::type ::iq {
 
 	incr myflight -1
 	if {($myflight < $mylimit) && [$myqueue size]} {
-	    lassign [$myqueue get] pattern cmd
-	    $self Dispatch $pattern $cmd
+	    lassign [$myqueue get] pattern newcmd
+	    $self Dispatch $pattern $newcmd
 	    $self NotifyEmpty
 	}
 

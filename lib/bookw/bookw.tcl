@@ -662,30 +662,31 @@ snit::widgetadaptor ::bookw {
 	${selfns}::S set $s
 
 	# Outliers, computed from global statistics of the page brightness.
+	if {[llength $o]} {
+	    # Get 2-sigma outliers for page brightness
+	    lassign [Outlier $o $b] bx by
+	    # Get 2-sigma outliers for page brightness differences
+	    lassign [Outlier $o $d] dx dy
+	    # Get 2-sigma outliers for page brightness stddev
+	    lassign [DownOutlier $o $s] vx vy
 
-	# Get 2-sigma outliers for page brightness
-	lassign [Outlier $o $b] bx by
-	# Get 2-sigma outliers for page brightness differences
-	lassign [Outlier $o $d] dx dy
-	# Get 2-sigma outliers for page brightness stddev
-	lassign [DownOutlier $o $s] vx vy
+	    # Fuse the results. Points of interest are the locations of
+	    # stddev outliers and the locations where both brightness and
+	    # brightness deltas indicate outliers. Compute the y locations
+	    # for these using the bxy map.
 
-	# Fuse the results. Points of interest are the locations of
-	# stddev outliers and the locations where both brightness and
-	# brightness deltas indicate outliers. Compute the y locations
-	# for these using the bxy map.
+	    set ix [lsort -integer [struct::set union $vx [struct::set intersect $bx $dx]]]
+	    set iy {} ; foreach x $ix { lappend iy [dict get $bxy $x] }
 
-	set ix [lsort -integer [struct::set union $vx [struct::set intersect $bx $dx]]]
-	set iy {} ; foreach x $ix { lappend iy [dict get $bxy $x] }
+	    ${selfns}::XB set $ix
+	    ${selfns}::YB set $iy
 
-	${selfns}::XB set $ix
-	${selfns}::YB set $iy
+	    #${selfns}::XD set $dx
+	    #${selfns}::YD set $dy
 
-	#${selfns}::XD set $dx
-	#${selfns}::YD set $dy
-
-	#${selfns}::XV set $vx
-	#${selfns}::YV set $vy
+	    #${selfns}::XV set $vx
+	    #${selfns}::YV set $vy
+	}
 
 	Debug.bookw {/}
 	return

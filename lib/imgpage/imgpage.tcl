@@ -14,9 +14,9 @@ package require snit
 package require tooltip
 package require widget::scrolledwindow
 
-#debug off    img/page
-debug on     img/page
 debug prefix img/page {[::debug::snit::call] }
+debug off    img/page
+#debug on     img/page
 
 # ### ### ### ######### ######### #########
 ##

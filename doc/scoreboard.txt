@@ -1,0 +1,109 @@
+# -*- tcl -*-
+#
+# Documentation of the tuples stored in the scoreboard, their
+# meanings, and associated code, i.e. creators, users, etc.
+
+tuple {PROJECT CREATE} {
+    Signal from the directory scanner to the creation task to generate
+    a new project (database).
+} {
+}
+
+tuple {PROJECT VERIFY} {
+    Signal from the directory scanner to the verification task to
+    cross-check an existing project (database).
+} {
+}
+
+tuple {PROJECT ERROR <msg>} {
+    Message for the user interface to post.
+} {
+}
+
+tuple {PROJECT SERVER <thread>} {
+    Access to project database is mediated by the thread with id <thread>.
+} {
+}
+
+tuple {AT <path>} {
+    The location of the current project (directory), as absolute path.
+} {
+}
+
+tuple {DATABASE <name>} {
+    The name/path of the database file, relative to the project directory.
+    Also a signal to the project database access layer to provide access.
+} {
+}
+
+tuple {FILE <path>} {
+    Name/path of an image file found by the scanner, relative to the project
+    directory. Used by either creation or verification task, i.e. make
+    them images, or compare to current images.
+} {
+}
+
+tuple {BOOK <name>} {
+    Name of a book found in the project (database).
+} {
+}
+
+tuple {IMAGE <path> <serial> <book>} {
+    Name/path of a verified page image file in the project,
+    with reference to the book it belongs to, and a serial
+    number providing the ordering within the book.
+} {
+}
+
+tuple {!THUMBNAIL <path> <size>} {
+    Signal to invalidate the <size>d thumbnail of page
+    image <path>.
+} {
+}
+
+tuple {THUMBNAIL <path> <size> <dstpath>} {
+    <dstpath> is the location of the <sized>d thumbnail for
+    page image <path>. All paths are relative to the project
+    (directory).
+} {
+}
+
+tuple {SCALE <path> <size> <dst>} {
+    Order to resize page image <path> to <size>, and store the
+    result in <dst>.
+} {
+}
+
+tuple {!GREYSCALE <path>} {
+    Signal to invalidate the greyscale derivation of page
+    image <path>.
+} {
+}
+
+tuple {GREYSCALE <path> <dstpath>} {
+    <dstpath> is the location of the greyscale derivation of
+    page image <path>. All paths are relative to the project
+    (directory).
+} {
+}
+
+tuple {GREYCONVERT <path> <dst>} {
+    Order to compute the greyscale of page image <path> and
+    store the result in <dst>.
+} {
+}
+
+tuple {!STATISTICS <path>} {
+    Signal to invalidate the statistics of page image <path>.
+} {
+}
+
+tuple {STATISTICS <path> <stats>} {
+    <stats> are the statistics of page image <path>.
+} {
+}
+
+tuple {STATSQ <path>} {
+    Order to compute the statistics of page image <path>.
+} {
+}

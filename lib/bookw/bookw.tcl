@@ -17,6 +17,7 @@ package require Tk
 package require snit
 package require iq
 package require img::strip ; # Strip of thumbnail images at the top.
+package require img::page  ; # Page spread, single or double.
 package require debug
 package require debug::snit
 package require blog
@@ -49,7 +50,8 @@ snit::widgetadaptor ::bookw {
 	installhull using ttk::frame
 
 	install myrbright using uevent::onidle ${selfns}::RBG [mymethod RefreshBright]
-	install mytqueue  using iq             ${selfns}::QT 4 ; # TODO : Query producer for allowed rate.
+	install mytqueue  using iq             ${selfns}::QT 4 -emptycmd [mymethod Refill]
+	; # TODO : Query producer for allowed rate.
 	install mysqueue  using iq             ${selfns}::QB 4 ; # TODO : Query producer for allowed rate.
 
 	set myproject $project
@@ -90,8 +92,8 @@ snit::widgetadaptor ::bookw {
 
     method Widgets {} {
 	# Chart of brightness values for the page images.
-	#rbc::graph $win.chart -height 100
-	rbc::graph $win.chart -height 400
+	rbc::graph $win.chart -height 200
+	#rbc::graph $win.chart -height 400
 
 	$win.chart axis configure y  -min 0 -max 256
 	$win.chart axis configure y2 -hide 0
@@ -159,7 +161,8 @@ snit::widgetadaptor ::bookw {
 	# Strip of thumbnails for the page images.
 	img::strip $win.strip -orientation vertical
 
-	#::widget::pages    .pages
+	# Single/double page spread.
+	img::page  $win.pages
 	return
     }
 
@@ -167,7 +170,7 @@ snit::widgetadaptor ::bookw {
 	pack $win.strip    -side left   -fill both -expand 0
 	pack $win.chart    -side top    -fill both -expand 0
 	#pack $win.strip    -side top    -fill both -expand 0
-	#pack .pages   -side top    -fill both -expand 1
+	pack $win.pages    -side top    -fill both -expand 1
 	return
     }
 
@@ -187,23 +190,25 @@ snit::widgetadaptor ::bookw {
 
 	if {![llength $selection]} return
 
-	set token [lindex $selection 0]
-	set path  $mypath($token)
-	set at    $myorder($path)
+	set token  [lindex $selection 0]
+	set path   $mypath($token)
+	set serial $myorder($path)
 
-	Debug.bookw { | $token -> $path -> $at}
+	Debug.bookw { | $token -> $path -> $serial}
 
 	# Move the seletion marker and its associated texts (all in
 	# the chart) to the new location.
 
 	$win.chart marker configure selection \
-	    -coords [list $at -Inf $at Inf]
+	    -coords [list $serial -Inf $serial Inf]
 
 	$win.chart marker configure tselectionr \
-	    -coords [list $at 10] -text $at
+	    -coords [list $serial 10] -text $serial
 
 	$win.chart marker configure tselectionl \
-	    -coords [list $at 250] -text $at
+	    -coords [list $serial 250] -text $serial
+
+	$self Select $serial
 
 	Debug.bookw {/}
 	return
@@ -212,23 +217,38 @@ snit::widgetadaptor ::bookw {
     method ChartSelection {x} {
 	Debug.bookw {}
 
-	# Screen to graph coordinates, then selewct the associated image.
+	# Screen to graph coordinates, then select the associated image.
 	$self Select [expr {int([$win.chart axis invtransform x $x])}]
+
+	Debug.bookw {/}
 	return
     }
 
-    method Select {at} {
+    method Select {serial} {
 	# x coordinate to image path, to the token used by the strip.
 
 	Debug.bookw {}
-	set path $myopath($at)
+
+	if {![info exists myopath($serial)]} {
+	    after idle [list after 0 [info level 0]]
+	    Debug.bookw {/ defered}
+	}
+
+	set path  $myopath($serial)
 	set token $mytoken($path)
+
+	if {$myshown eq $path} return
+	set myshown $path
 
 	# Set the selection in the strip, this comes back to us via
 	# 'Selection' above, which then updates the chart.
 	$win.strip selection set $token
 
-	Debug.bookw {/}
+	# Request the regular page (still scaled down) for the page
+	# spread underneath the chart, to the right of the strip.
+	$self GetRegular $path 1
+
+	Debug.bookw {/ shown = $myshown}
 	return
     }
 
@@ -263,7 +283,7 @@ snit::widgetadaptor ::bookw {
 	$win.strip itemconfigure $token \
 	    -label   "$path ($serial)" \
 	    -order   $serial \
-	    -message {Waiting for thumbnail...}
+	    -message {Creating thumbnail...}
 
 	set mytoken($path)     $token
 	set mypath($token)     $path
@@ -274,16 +294,17 @@ snit::widgetadaptor ::bookw {
 	$self GetThumbnail  $path
 	$self GetStatistics $path
 
+	# Handling of the medium size thumbnail. First one request
+	# immediately for display. Also immediately if all small
+	# thumbnails known. Otherwise defer to to when the issue queue
+	# emptied (of small thumbnails).
+
 	if {$mycountimages < 2} {
-	    $self Select 0
-	    # TODO : GetRegular... (image)
+	    after idle [mymethod Select 0]
+	} elseif {$mycountthumbsmall == $mycountimages} {
+	    $self GetRegular $path 1
 	} else {
-	    # Save requests for regular images... These are trickled
-	    # into the system when the thumbnails are all done
-	    # ... Later, when selections change we hopefully have all
-	    # the images to display already ... Might need a
-	    # high-priority channel for when selection changes and
-	    # images are still trickling through.
+	    lappend mympending $path
 	}
 
 	$win.chart axis configure x -min 0 -max $mycountimages
@@ -299,9 +320,10 @@ snit::widgetadaptor ::bookw {
 	lassign $tuple _ path serial book
 	# TODO : Should assert that book is the expected one.
 
-	incr mycountimages -1
-	incr mycountthumb  -1
-	incr mycountstat   -1
+	incr mycountimages      -1
+	incr mycountthumbsmall  -1
+	incr mycountthumbmedium -1
+	incr mycountstat        -1
 	$self Log "Book $book ($path /$mycountimages)"
 
 	# doc/interaction_pci.txt (5), release monitor
@@ -336,7 +358,7 @@ snit::widgetadaptor ::bookw {
     method GetThumbnail {path} {
 	Debug.bookw {}
 
-	set request [bookflow::thumbnail::request $path 160]
+	set request [bookflow::thumbnail::request $path 160];# x120
 
 	# doc/interaction_pci.txt (5).
 	$mysb bind take $request [mymethod InvalidThumbnail]
@@ -354,20 +376,21 @@ snit::widgetadaptor ::bookw {
 	Debug.bookw {}
 
 	lassign $tuple _ path size thumb
+	if {$size != 160} { error {Size mismatch} }
 
-	# Ignore invalidation of a thumbnail when its image is not
-	# used here any longer.
+	# Ignore invalidation of a small thumbnail when its image is
+	# not used here any longer.
 
 	if {![info exists mytoken($path)]} {
-	    Debug.bookw {/}
+	    Debug.bookw {ignored/}
 	    return
 	}
 
-	incr mycountthumb -1
-	$self Log "Refresh T $path $mycountthumb/$mycountimages"
+	incr mycountthumbsmall -1
+	$self Log "Refresh TS $path $mycountthumbsmall/$mycountimages"
 
 	# Still using the image, therefore request a shiny new valid
-	# thumbnail. doc/interaction_pci.txt (4).
+	# small thumbnail. doc/interaction_pci.txt (4).
 
 	$win.strip itemconfigure $mytoken($path) \
 	    -message {Invalidated...}
@@ -385,20 +408,22 @@ snit::widgetadaptor ::bookw {
 	Debug.bookw {}
 
 	lassign $tuple _ path size thumb
+	if {$size != 160} { error {Size mismatch} }
 
 	# Ignore the incoming thumbnail when its image is not used
 	# here any longer.
 
 	if {![info exists mytoken($path)]} {
-	    Debug.bookw {/}
+	    Debug.bookw {ignored/}
 	    return
 	}
 
-	incr mycountthumb
-	$self Log "Thumbnail $path $mycountthumb/$mycountimages"
+	incr mycountthumbsmall
+	$self Log "Thumbnail S $path $mycountthumbsmall/$mycountimages"
 
-	# Load thumbnail and place it into the strip proper. Careful,
-	# retrieve and destroy any previously shown thumbnail first.
+	# Load small thumbnail and place it into the strip
+	# proper. Careful, retrieve and destroy any previously shown
+	# thumbnail first.
 
 	set photo [$win.strip itemcget $mytoken($path) -image]
 	if {$photo ne {}} {
@@ -409,6 +434,116 @@ snit::widgetadaptor ::bookw {
 	$win.strip itemconfigure $mytoken($path) \
 	    -image   $photo \
 	    -message {}
+
+	Debug.bookw {/}
+	return
+    }
+
+    # ### ### ### ######### ######### #########
+
+    method Refill {args} {
+	if {![llength mympending]} return
+	foreach path $mympending {
+	    $self GetRegular $path
+	}
+	set mympending {}
+	return
+    }
+
+    # ### ### ### ######### ######### #########
+
+    method GetRegular {path {fasttrack 0}} {
+	Debug.bookw {}
+
+	if {![string match {IMG_*} $path]} { error {Bad Path} }
+
+	set request [bookflow::thumbnail::request $path 800];# x600
+
+	# doc/interaction_pci.txt (5).
+	$mysb bind take $request [mymethod InvalidRegular]
+
+	# doc/interaction_pci.txt (4). Uses rate-limiting queue. The
+	# same as the 160er thumbnails.
+	if {$fasttrack} {
+	    # Bypass queue for fast track issue.
+	    scoreboard wpeek $request [mymethod HaveRegular]
+	} else {
+	    $mytqueue put $request [mymethod HaveRegular]
+	}
+
+	Debug.bookw {/}
+	return
+    }
+
+    # doc/interaction_pci.txt (5).
+    method InvalidRegular {tuple} {
+	# tuple = (THUMBNAIL image-path size thumbnail-path)
+	Debug.bookw {}
+
+	lassign $tuple _ path size thumb
+	if {$size != 800} { error {Size mismatch} }
+
+	# Ignore invalidation of a medium thumbnail when its image is
+	# not used here any longer. Ditto if the image is used, but
+	# not shown.
+
+	if {![info exists mytoken($path)] ||
+	    ($myshown ne $path)} {
+	    Debug.bookw {ignored/}
+	    return
+	}
+
+	incr mycountthumbmedium -1
+	$self Log "Refresh TM $path $mycountthumbmedium/$mycountimages"
+
+	# Still using the image, therefore request a shiny new valid
+	# medium thumbnail. doc/interaction_pci.txt (4).
+
+	# TODO : Get and destroy currently shown image...
+
+	$win.pages even image {}
+	$win.pages even text  {Invalidated...}
+
+	$mytqueue put [bookflow::thumbnail::request $path $size] [mymethod HaveRegular]
+
+	Debug.bookw {/}
+	return
+    }
+
+    # doc/interaction_pci.txt (4).
+    method HaveRegular {tuple} {
+	# tuple = (THUMBNAIL image-path size thumbnail-path)
+	# Paths are relative to the project directory.
+	Debug.bookw {}
+
+	lassign $tuple _ path size thumb
+	if {$size != 800} { error {Size mismatch} }
+
+	incr mycountthumbmedium
+	$self Log "Regular M $path $mycountthumbmedium/$mycountimages"
+
+	# Ignore the incoming medium thumbnail when its image is not
+	# used here any longer. Ditto if the image is used, but not
+	# shown.
+
+	if {![info exists mytoken($path)] ||
+	    ($myshown ne $path)} {
+	    Debug.bookw {ignored/ [info exists mytoken($path)], ($myshown ne $path)? $myshown = $path}
+	    return
+	}
+
+	# Load medium thumbnail and place it into the page spread
+	# proper. Careful, retrieve and destroy any previously shown
+	# image first.
+
+	# TODO - get and delte previous image
+	#set photo [$win.strip itemcget $mytoken($path) -image]
+	#if {$photo ne {}} { image delete $photo }
+
+	set photo [image create photo -file $myproject/$thumb]
+
+	$win.pages even text  {}
+	$win.pages even image $photo
 
 	Debug.bookw {/}
 	return
@@ -620,9 +755,15 @@ snit::widgetadaptor ::bookw {
     variable mytqueue     {} ; # Issue queue for thumbnails
     variable mysqueue     {} ; # Issue queue for statistics
 
-    variable mycountimages 0 ; # Number of managed images
-    variable mycountthumb  0 ; # Number of managed thumbnails
-    variable mycountstat   0 ; # Number of managed brightness values
+    variable mycountimages      0 ; # Number of managed images
+    variable mycountthumbsmall  0 ; # Number of managed small thumbnails
+    variable mycountthumbmedium 0 ; # Number of managed medium thumbnails
+    variable mycountstat        0 ; # Number of managed brightness values
+
+    variable myshown {} ; # PATH of currently shown/selected page.
+
+    variable mympending {} ; # List of pages for which the medium
+			     # sized thumbnails are pending.
 
     ##
     # ### ### ### ######### ######### #########

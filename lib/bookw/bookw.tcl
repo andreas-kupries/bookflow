@@ -16,6 +16,7 @@ package require Tcl 8.5
 package require Tk
 package require snit
 package require iq
+package require scoreboard
 package require img::strip ; # Strip of thumbnail images at the top.
 package require img::page  ; # Page spread, single or double.
 package require debug
@@ -44,7 +45,7 @@ snit::widgetadaptor ::bookw {
     # ### ### ### ######### ######### #########
     ##
 
-    constructor {book scoreboard project args} {
+    constructor {book project args} {
 	Debug.bookw {}
 
 	installhull using ttk::frame
@@ -56,7 +57,6 @@ snit::widgetadaptor ::bookw {
 
 	set myproject $project
 	set mybook    $book
-	set mysb      $scoreboard
 	set mypattern [list IMAGE * $book]
 
 	$self Widgets
@@ -67,9 +67,9 @@ snit::widgetadaptor ::bookw {
 	# named book might have already been added to the scoreboard,
 	# which won't be caught by the 'put' event we are registering.
 
-	$mysb peek      $mypattern [mymethod BookImages]
-	$mysb bind put  $mypattern [mymethod BookImageNew]
-	$mysb bind take $mypattern [mymethod BookImageDel]
+	scoreboard peek      $mypattern [mymethod BookImages]
+	scoreboard bind put  $mypattern [mymethod BookImageNew]
+	scoreboard bind take $mypattern [mymethod BookImageDel]
 
 	$self configurelist $args
 
@@ -80,8 +80,8 @@ snit::widgetadaptor ::bookw {
     destructor {
 	Debug.bookw {}
 
-	$mysb unbind put  $mypattern [mymethod BookImageNew]
-	$mysb unbind take $mypattern [mymethod BookImageDel]
+	scoreboard unbind put  $mypattern [mymethod BookImageNew]
+	scoreboard unbind take $mypattern [mymethod BookImageDel]
 
 	Debug.bookw {/}
 	return
@@ -327,14 +327,14 @@ snit::widgetadaptor ::bookw {
 	$self Log "Book $book ($path /$mycountimages)"
 
 	# doc/interaction_pci.txt (5), release monitor
-	$mysb unbind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
+	scoreboard unbind take [list THUMBNAIL $path *] [mymethod InvalidThumbnail]
 	# doc/interaction_pci.txt (4) - A waiting wpeek cannot released/canceled.
-	#$mysb wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
+	#scoreboard wpeek [list THUMBNAIL $path *] [mymethod HaveThumbnail]
 
 	# doc/interaction_pci.txt (5), release monitor
-	$mysb unbind take [list STATISTICS $path *] [mymethod InvalidStatistics]
+	scoreboard unbind take [list STATISTICS $path *] [mymethod InvalidStatistics]
 	# doc/interaction_pci.txt (4) - A waiting wpeek cannot released/canceled.
-	#$mysb wpeek [list STATISTICS $path *] [mymethod HaveThumbnail]
+	#scoreboard wpeek [list STATISTICS $path *] [mymethod HaveThumbnail]
 
 	set token  $mytoken($path)
 	set serial $myorder($path)
@@ -361,7 +361,7 @@ snit::widgetadaptor ::bookw {
 	set request [bookflow::thumbnail::request $path 160];# x120
 
 	# doc/interaction_pci.txt (5).
-	$mysb bind take $request [mymethod InvalidThumbnail]
+	scoreboard bind take $request [mymethod InvalidThumbnail]
 
 	# doc/interaction_pci.txt (4). Uses rate-limiting queue
 	$mytqueue put $request [mymethod HaveThumbnail]
@@ -460,7 +460,7 @@ snit::widgetadaptor ::bookw {
 	set request [bookflow::thumbnail::request $path 800];# x600
 
 	# doc/interaction_pci.txt (5).
-	$mysb bind take $request [mymethod InvalidRegular]
+	scoreboard bind take $request [mymethod InvalidRegular]
 
 	# doc/interaction_pci.txt (4). Uses rate-limiting queue. The
 	# same as the 160er thumbnails.
@@ -555,7 +555,7 @@ snit::widgetadaptor ::bookw {
 	Debug.bookw {}
 
 	# doc/interaction_pci.txt (5).
-	$mysb bind take [list STATISTICS $path *] [mymethod InvalidStatistics]
+	scoreboard bind take [list STATISTICS $path *] [mymethod InvalidStatistics]
 
 	# doc/interaction_pci.txt (4). Uses rate-limiting queue
 	$mysqueue put [list STATISTICS $path *] [mymethod HaveStatistics]
@@ -739,7 +739,6 @@ snit::widgetadaptor ::bookw {
 
     variable myproject ; # Path of project directory.
     variable mybook    ; # Name of the book this is connected to
-    variable mysb      ; # Command to access the scoreboard.
     variable mypattern ; # Scoreboard pattern for images of this book.
 
     variable mytoken -array {}  ; # Map image PATHs to the associated

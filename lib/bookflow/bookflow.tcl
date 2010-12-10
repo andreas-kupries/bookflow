@@ -121,7 +121,7 @@ proc ::bookflow::BookNew {tuple} {
     set w .books.f$bookcounter
     incr bookcounter
 
-    ::bookw $w $name ::scoreboard $project -log Log.bookflow
+    ::bookw $w $name $project -log Log.bookflow
     .books add $w -sticky nsew -text $name ; # TODO : -image book-icon -compound
 
     # Watch and react to scoreboard activity

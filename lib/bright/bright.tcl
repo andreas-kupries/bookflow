@@ -40,7 +40,7 @@ debug off    bookflow/bright
 proc ::bookflow::bright {} {
     Debug.bookflow/bright {Bookflow::Bright Watch}
 
-    scoreboard take {AT *} [namespace code bright::BEGIN]
+    scoreboard wpeek {AT *} [namespace code bright::BEGIN]
 
     Debug.bookflow/bright {/}
     return
@@ -48,8 +48,6 @@ proc ::bookflow::bright {} {
 
 proc ::bookflow::bright::BEGIN {tuple} {
     # tuple = (AT project)
-    # Put it back for the use of others.
-    scoreboard put $tuple
 
     Debug.bookflow/bright {Bookflow::Bright BEGIN <$tuple>}
 

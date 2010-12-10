@@ -35,7 +35,7 @@ debug off    bookflow/greyscale
 proc ::bookflow::greyscale {} {
     Debug.bookflow/greyscale {Bookflow::Greyscale Watch}
 
-    scoreboard take {AT *} [namespace code greyscale::BEGIN]
+    scoreboard wpeek {AT *} [namespace code greyscale::BEGIN]
 
     Debug.bookflow/greyscale {/}
     return
@@ -43,8 +43,6 @@ proc ::bookflow::greyscale {} {
 
 proc ::bookflow::greyscale::BEGIN {tuple} {
     # tuple = (AT project)
-    # Put it back for the use of others.
-    scoreboard put $tuple
 
     Debug.bookflow/greyscale {Bookflow::Greyscale BEGIN <$tuple>}
 

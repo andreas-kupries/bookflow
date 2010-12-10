@@ -27,13 +27,11 @@ debug off    bookflow/project
 	package require scoreboard
 
 	# Wait for the appearance of (DATABASE *)
-	scoreboard take {DATABASE *} {::apply {{tuple} {
-	    scoreboard put $tuple
+	scoreboard wpeek {DATABASE *} {::apply {{tuple} {
 	    lassign $tuple _ dbfile
 
 	    # Pull the project location
-	    scoreboard take {AT *} [list ::apply {{dbfile tuple} {
-		scoreboard put $tuple
+	    scoreboard wpeek {AT *} [list ::apply {{dbfile tuple} {
 		lassign $tuple _ project
 
 		package require bookflow::db

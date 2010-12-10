@@ -60,20 +60,17 @@ proc ::bookflow::create::TASK {} {
     package require bookflow::create
     package require bookflow::project ; # client
 
-    scoreboard take {AT *} [namespace code BEGIN]
+    scoreboard wpeek {AT *} [namespace code BEGIN]
 
     Debug.bookflow/create {Bookflow::Create TASK/}
     return
 }
 
 proc ::bookflow::create::BEGIN {tuple} {
+    # tuple = (AT project)
     variable defaultfile
 
     Debug.bookflow/create {Bookflow::Create BEGIN <$tuple>}
-
-    # tuple = (AT project)
-    # Put it back for the use of others.
-    scoreboard put $tuple
 
     # Get the payload
     lassign $tuple _ projectdir

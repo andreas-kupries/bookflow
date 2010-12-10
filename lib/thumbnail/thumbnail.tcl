@@ -35,7 +35,7 @@ debug off    bookflow/thumbnail
 proc ::bookflow::thumbnail {} {
     Debug.bookflow/thumbnail {Bookflow::Thumbnail}
 
-    scoreboard take {AT *} [namespace code thumbnail::Initialize]
+    scoreboard wpeek {AT *} [namespace code thumbnail::Initialize]
 
     Debug.bookflow/thumbnail {/}
     return
@@ -50,8 +50,6 @@ proc ::bookflow::thumbnail::request {path size} {
 
 proc ::bookflow::thumbnail::Initialize {tuple} {
     # tuple = (AT project)
-    # Put it back for the use of others.
-    scoreboard put $tuple
     lassign $tuple _ project
 
     Debug.bookflow/thumbnail {Bookflow::Thumbnail Initialize <$project>}

@@ -60,7 +60,7 @@ proc ::bookflow::verify::TASK {} {
     package require bookflow::verify
     package require bookflow::project ; # client
 
-    scoreboard take {AT *} [namespace code BEGIN]
+    scoreboard wpeek {AT *} [namespace code BEGIN]
 
     Debug.bookflow/verify {Bookflow::Verify TASK/}
     return
@@ -72,8 +72,6 @@ proc ::bookflow::verify::BEGIN {tuple} {
     Debug.bookflow/verify {Bookflow::Verify BEGIN <$tuple>}
 
     # tuple = (AT project)
-    # Put it back for the use of others.
-    scoreboard put $tuple
 
     # Get the payload
     lassign $tuple _ projectdir

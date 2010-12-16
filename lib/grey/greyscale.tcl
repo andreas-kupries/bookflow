@@ -129,8 +129,8 @@ proc ::bookflow::greyscale::MAKE {project pattern} {
 	# tasks to generate it. This will also put the proper result
 	# into the scoreboard on completion.
 
-	scoreboard put [list GREYCONVERT $project/$path $greyfull \
-			    [list GREYSCALE $path $grey]]
+	set r [list GREYSCALE $path $grey]
+	scoreboard put [list GREYCONVERT $project/$path $greyfull $r]
     }
 
     Debug.bookflow/greyscale {Bookflow::Greyscale MAKE/}

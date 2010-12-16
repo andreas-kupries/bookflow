@@ -43,7 +43,8 @@ debug off    bookflow/project
 
 		::bookflow::db ::bookflow::project $dbfile
 
-		scoreboard put [list PROJECT SERVER [thread::id]]
+		set id [thread::id]
+		scoreboard put [list PROJECT SERVER $id]
 		return
 	    }} $dbfile]
 

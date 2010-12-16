@@ -104,7 +104,7 @@ proc ::bookflow::Bindings {} {
 
     # Watch and react to scoreboard activity
     # Here: Extend the notebook when new books are announced
-    scoreboard bind put  {BOOK *} [namespace code BookNew]
+    scoreboard bind put {BOOK *} [namespace code BookNew]
     return
 }
 

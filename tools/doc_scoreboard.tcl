@@ -18,7 +18,7 @@ proc main {tooldir} {
 }
 
 proc sbscan {topdir} {
-    puts Scanning\ $topdir...
+    #puts Scanning\ $topdir...
 
     set db {}
     foreach f [fileutil::findByPattern $topdir -glob -- *.tcl] {
@@ -31,15 +31,19 @@ proc sbscan {topdir} {
 }
 
 proc scansbfile {f fname} {
-    puts \t$f...
+    #puts \t$f...
 
     array set t {}
+    set TUPLE {}
 
     foreach line [split [fileutil::cat $f] \n] {
 	set line [string trim $line]
 	switch -glob -- $line {
 	    \#* {
 		# ... pragmas
+		if {[string match {*@SB *} $line]} {
+		    regexp {@SB (.*)$} $line -> TUPLE
+		}
 	    }
 	    package*provide* {
 		# might use this in future.
@@ -54,19 +58,22 @@ proc scansbfile {f fname} {
 		    put {
 			# remainder = tuples
 			while {$line ne {}} {
-			    lappend t([word line]) $method
+			    set tuple [tuple line]
+			    lappend t($tuple) $method
 			}
 		    }
 		    take -
 		    takeall -
 		    peek -
 		    wpeek {
-			lappend t([word line]) $method
+			set tuple [tuple line]
+			lappend t($tuple) $method
 		    }
 		    unbind -
 		    bind {
 			set event [word line]
-			lappend t([word line]) [list $method $event]
+			set tuple [tuple line]
+			lappend t($tuple) [list $method $event]
 		    }
 		    default {
 			# unknown method.
@@ -80,6 +87,17 @@ proc scansbfile {f fname} {
     if {![array size t]} { return }
 
     return [list $fname [array get t]]
+    # result = dict (file -> dict (tuple -> list (action...)))
+}
+
+proc tuple {svar} {
+    upvar 1 $svar string TUPLE TUPLE
+    set tuple [word string]
+    if {$TUPLE ne {}} {
+	set tuple $TUPLE
+	set TUPLE {}
+    }
+    return $tuple
 }
 
 proc word {svar} {
@@ -108,6 +126,8 @@ proc word {svar} {
 	set patterne "(\\\{\[^\}\]+\\\})()$"
 	expr {[regexp $patterni $string -> word remainder] ||
 	      [regexp $patterne $string -> word remainder]}
+	# strip the braces.
+	set word [string range $word 1 end-1]
     } else {
 	set c w
 	regexp {([^ 	]+)[ 	]+(.*)$} $string -> word remainder
@@ -124,21 +144,67 @@ proc word {svar} {
 }
 
 proc dump {db} {
-    array set d $db
-    parray d
+    # db = dict (file -> dict (tuple -> list (action...)))
+
+    #array set d $db
+    #parray d
+
+    # Invert the structure to make the tuple (patterns) the major index.
+    # D = dict (tuple -> dict (action -> list (file...)))
 
     set D {}
-    foreach {fname ta} $db {
-	foreach {tuple actions} $ta {
+    foreach {fname data} $db {
+	foreach {tuple actions} $data {
+	    set actions [lsort -unique $actions]
+	    set A {}
 	    foreach a $actions {
-		dict lappend D $tuple $a $fname
+		dict lappend A $a $fname
 	    }
+	    dict lappend D $tuple $A
 	}
     }
+    set db $D
+    set D {}
+    foreach {tuple data} $db {
+	# data = list (dict (action -> list(fname)))
+	array set X {}
+	foreach dict $data {
+	    lassign $dict action files
+	    lappend X($action) {*}$files
+	}
+	#parray X
+	lappend D $tuple [array get X]
+	array unset X
+    }
 
-    array set T $D
-    parray T
+    #puts $D
+    #return
+
+    # Write structure in machine- and human-readable form.
+    foreach {tuple fa} [dictsort $D] {
+	puts "\ntuple [list $tuple] \{"
+	# todo description - get via pragma's
+	puts "\} \{"
+	#puts "==== $fa ===="
+	foreach {action files} [dictsort $fa] {
+	    set files [lsort -unique $files]
+	    puts "    $action \{\n\t[join $files "\n\t"]\n    \}"
+	}
+	puts "\}"
+    }
+
+    #array set T $D
+    #parray T
     return
+}
+
+proc dictsort {dict} {
+    array set a $dict
+    set out [list]
+    foreach key [lsort [array names a]] {
+	lappend out $key $a($key)
+    }
+    return $out
 }
 
 # ## ### ##### ######## ############# #####################

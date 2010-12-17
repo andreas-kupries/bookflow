@@ -50,6 +50,7 @@ proc ::bookflow::scan::TASK {projectdir} {
     package require scoreboard
     package require bookflow::db
 
+    #@SB AT *
     scoreboard put [list AT $projectdir]
     set dir [file normalize $projectdir]
 

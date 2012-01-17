@@ -1,0 +1,165 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+#########################
+# Scan the current directory for jpeg files and use them to initialize
+# a book flow project.
+
+lappend auto_path [file dirname [file dirname [file normalize [info script]]]]/lib
+
+# TODO: Restrict to images of a certain size and/or make (camera type).
+
+package require Tcl 8.5
+package require fileutil
+package require fileutil::traverse
+package require jpeg
+package require bookflow::project
+
+#########################
+
+proc main {} {
+    if {[catch {
+	set pdir   [cmdline]
+	set images [find-images $pdir]
+	generate-thumbnails $pdir $images
+	complete-project
+    } msg]} {
+	puts stderr $msg
+	exit 1
+    }
+    return
+}
+
+proc cmdline {} {
+    global argv argv0
+    if {[llength $argv] > 1} {
+	puts stderr "Usage: $argv0 ?projectdirectory?"
+	exit 1
+    } elseif {[llength $argv] == 1} {
+	lassign $argv pdir
+    } else {
+	set pdir [pwd]
+    }
+
+    set pdir [file dirname [file normalize $pdir/___]]
+
+    # Set the project file up.
+    set pfile [pwd]/BOOKFLOW
+
+    puts stderr "Project file   @ $pfile"
+
+    bookflow::project new  $pfile $pdir
+    bookflow::project BOOK $pfile
+
+    return $pdir
+}
+
+proc find-images {pdir} {
+    set here [pwd]
+    scan-init "Scan directory @ $pdir : "
+    set images [scan-path $pdir]
+    scan-done
+
+    puts stderr "Updating project with images: [llength $images]"
+
+    if {[llength $images]} {
+	BOOK add $images
+    }
+
+    return $images
+}
+
+proc generate-thumbnails {pdir images} {
+    if {![llength $images]} return
+
+    set k 0
+    set n [llength $images]
+
+    foreach image $images {
+	incr k
+	puts -nonewline stderr "\rThumbnail $image \[$k/$n\]"
+	flush stderr
+
+	set thumb [jpeg::getThumbnail $pdir/$image]
+	if {$thumb eq {}} {
+	    puts -nonewline stderr " MISSING"
+	    flush stderr
+	} else {
+	    BOOK thumbnail $image $thumb
+	    puts -nonewline stderr " OK"
+	    flush stderr
+	}
+    }
+
+    puts stderr ""
+    return
+}
+
+proc complete-project {} {
+    puts stderr "Setup complete"
+    BOOK destroy
+    return
+}
+
+#########################
+# Frontend - Scanning
+
+proc scan-init {prefix} {
+    global nfiles nimages pingprefix
+    set nfiles  0
+    set nimages 0
+    set pingprefix $prefix
+    return
+}
+
+proc scan-done {} {
+    global nfiles nimages
+    if {!$nfiles} return ; puts ""
+    #puts stderr [expr {$nfiles ? "\n":""}]
+    #___________________________________________
+    #puts stderr "\#Scanned: $nfiles, found $nimages"
+}
+
+proc scan-ping-file {} {
+    global nfiles nimages pingprefix
+    incr   nfiles
+
+    puts -nonewline stderr \r$pingprefix$nfiles/$nimages
+    flush stderr
+    return
+}
+
+proc scan-ping-image {} {
+    global nfiles nimages pingprefix
+    incr   nimages
+
+    puts -nonewline stderr \r$pingprefix$nfiles/$nimages
+    flush stderr
+    return
+}
+
+proc only-files {f} {
+    if {![file isfile $f]}  { return 0 }
+    #if {![file size $f]}    { return 0 }
+    #if {![jpeg::isJPEG $f]} { return 0 }
+    return 1
+}
+
+proc scan-path {path} {
+    set path [file dirname [file normalize $path/___]]
+
+    fileutil::traverse T $path -filter only-files
+    set result {}
+    T foreach f {
+	scan-ping-file
+	if {![jpeg::isJPEG $f]} continue
+	scan-ping-image
+	lappend result [fileutil::stripPath $path $f]
+    }
+    T destroy
+    return $result
+}
+
+#########################
+
+main
+exit

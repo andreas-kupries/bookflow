@@ -84,7 +84,12 @@ proc generate-thumbnails {pdir images} {
 	    puts -nonewline stderr " MISSING"
 	    flush stderr
 	} else {
-	    BOOK thumbnail $image $thumb
+	    #BOOK thumbnail $image $thumb
+
+	    file mkdir thumb
+	    fileutil::writeFile -encoding binary -translation binary \
+		thumb/$image $thumb
+
 	    puts -nonewline stderr " OK"
 	    flush stderr
 	}

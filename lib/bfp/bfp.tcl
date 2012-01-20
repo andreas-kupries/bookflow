@@ -140,13 +140,18 @@ snit::type ::bookflow::project {
     # ### ### ### ######### ######### #########
     ## Public project methods
 
+    method where {} {
+	return $mydir
+    }
+
     method add {images} {
 	#Debug.bookflow/project {}
 
 	$mydb transaction {
 	    foreach image $images {
 		$mydb eval {
-		    INSERT INTO image VALUES (NULL,:image,1,1,1)
+		    INSERT INTO image VALUES (NULL,:image,1,1,1,0)
+		    -- flags => used, page, even, !attention
 		}
 	    }
 	}
@@ -155,7 +160,7 @@ snit::type ::bookflow::project {
 	return
     }
 
-    method thumbnail {image thumbdata} {
+    if 0 {method thumbnail {image thumbdata} {
 	#Debug.bookflow/project {}
 
 	$mydb transaction {
@@ -169,6 +174,21 @@ snit::type ::bookflow::project {
 	#Debug.bookflow/project {/}
 	return
     }
+
+    method thumbnail? {image} {
+	#Debug.bookflow/project {}
+
+	$mydb transaction {
+	    set data [$mydb eval {
+		SELECT thumb FROM thumb
+		WHERE iid IN (SELECT iid FROM image
+			      WHERE path = :image)
+	    }]
+	}
+
+	#Debug.bookflow/project {/}
+	return $data
+    }}
 
     ### Accessors and manipulators
 

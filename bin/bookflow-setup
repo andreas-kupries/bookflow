@@ -56,7 +56,7 @@ proc cmdline {} {
 proc find-images {pdir} {
     set here [pwd]
     scan-init "Scan directory @ $pdir : "
-    set images [scan-path $pdir]
+    set images [lsort -dict [scan-path $pdir]]
     scan-done
 
     puts stderr "Updating project with images: [llength $images]"

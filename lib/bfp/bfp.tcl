@@ -160,6 +160,15 @@ snit::type ::bookflow::project {
 	return
     }
 
+    method images {} {
+	$mydb transaction {
+	    set images [$mydb eval {
+		SELECT path FROM image WHERE used = 1;
+	    }]
+	}
+	return [lsort -dict $images]
+    }
+
     if 0 {method thumbnail {image thumbdata} {
 	#Debug.bookflow/project {}
 

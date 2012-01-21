@@ -1,0 +1,52 @@
+
+Display of images in the application allowing me to change their
+flags, quickly.
+=================================================================
+
+(1)	Strip of images, horizontal
+or	Matrix of images, left to right, top to bottom
+
+(2)	Per image entry
+
+	-   Not in project	- Covered by red X
+	-   In project		- Freely visible
+
+	-   Image of page	- Blue border
+	-   Image of cover	- Green border
+
+	-   Attention on image	- Show icon at bottom border, exclamation in triangle, reddish
+	-   No attention	- Free bottom border
+
+	-   Even image (left side) -   Show icon at top left corner, yellow star
+	-   Odd image (right side) -   Show icon at top right corner, yellow star
+
+	Look for fam fam icons matching my needs, per above.
+
+
+Keyboard controls of the application. No button, no menu.
+=================================================================
+
+(a)	General selection keys, per treectrl bindings.
+
+(b)	q	Quit application
+	h	Hide images not in the project. Default.
+	u	Unhide. Needed to undo dropping of images.
+
+	!	Toggle attention
+	d	Toggle image in project ((un)drop).	(x)
+
+	f	Mark as front cover	(combo l+c)
+	b	Mark as back cover	(combo r+c)
+
+	l	Mark as left/even	(default)
+	r	Mark as right/odd
+
+	c	Mark as cover
+	p	Mark as page	(default)
+
+     (No separate save, all changes apply immediately)
+     (No undo, all changes can be undone)
+
+ (Ad x)	 When an image is remove its immediate left and right
+	 non-dropped! neighbours (as determined by file name in
+	 dictonary order) are get attention set.

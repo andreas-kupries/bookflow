@@ -88,7 +88,7 @@ proc generate-thumbnails {pdir images} {
 
 	    file mkdir thumb
 	    fileutil::writeFile -encoding binary -translation binary \
-		thumb/$image $thumb
+		thumb/[file tail $image] $thumb
 
 	    puts -nonewline stderr " OK"
 	    flush stderr

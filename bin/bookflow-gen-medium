@@ -22,6 +22,11 @@ package require crimp      ;# resizing
 # Disable anything from the GUI, there is nothing.
 wm withdraw .
 
+proc mi {} { return
+    set mi [split [memory info] \n]
+    return [list [lindex $mi 3 3] [lindex $mi 5 3]]
+}
+
 #########################
 
 proc main {} {
@@ -60,14 +65,12 @@ proc generate-medium {} {
 
     foreach image $images {
 	incr k
-	puts -nonewline stderr "\nMedium $image \[$k/$n\]"
-	flush stderr
+	tell "\rMedium $image \[$k/$n\]"
 
 	# Load image, by way of Tk photo - crimp currently doesn't
 	# have a jpeg reader, yet.
 
-puts -nonewline stderr /load
-flush stderr
+	tell " /load"
 	image create photo IMAGE -file $pdir/$image
 	set i [crimp convert 2rgb [crimp read tk IMAGE]]
 	image delete IMAGE
@@ -82,12 +85,10 @@ flush stderr
 	# Here scale down by 11.4, choose sigma 11.4/3 = 3.8
 	# filter radius becomes roughly 3 sigma = 11.4.
 
-puts -nonewline stderr /blur
-flush stderr
+	tell /blur
 	set res {}
 	foreach c [crimp split $i] {
-puts -nonewline stderr *
-flush stderr
+	    tell *
 	    set c [crimp convert 2float $c]
 	    set c [crimp gaussian_blur_float $c 3.8]
 	    set c [crimp convert 2grey8 $c]
@@ -97,18 +98,15 @@ flush stderr
 	unset res c
 
 	# Now the actual down sizing.
-puts -nonewline stderr /resize
-flush stderr
+	tell /resize
 	set i [crimp::resize $i 320 240]
 
 	# And write it out. Change the extension, this not jpeg anymore.
-	file mkdir medium
-puts -nonewline stderr /write
-flush stderr
-	crimp write 2file ppm-raw medium/[file root $image].ppm $i
+	file mkdir medium/;#[file dirname $image]
+	tell /write
+	crimp write 2file ppm-raw medium/[file root [file tail $image]].ppm $i
 
-	puts -nonewline stderr " OK"
-	flush stderr
+	tell " OK [mi]"
     }
 
     puts stderr ""
@@ -118,6 +116,11 @@ flush stderr
 proc complete-project {} {
     BOOK destroy
     return
+}
+
+proc tell {text} {
+    puts -nonewline stderr $text
+    flush stderr
 }
 
 #########################

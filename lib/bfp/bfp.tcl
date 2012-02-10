@@ -1,10 +1,10 @@
 ## -*- tcl -*-
-# ### ### ### ######### ######### #########
+# # ## ### ##### ######## ############# #####################
 
 # Access to Bookflow Project Files
 # Internally: sqlite3 database.
 
-# ### ### ### ######### ######### #########
+# # ## ### ##### ######## ############# #####################
 ## Requisites
 
 package require Tcl 8.5
@@ -18,18 +18,18 @@ namespace eval ::bookflow::project {
     variable selfdir [file dirname [file normalize [info script]]]
 }
 
-# ### ### ### ######### ######### #########
+# # ## ### ##### ######## ############# #####################
 ## Tracing
 
 #debug prefix bookflow/project {[::debug::snit::call] }
 #debug off    bookflow/project
 #debug on     bookflow/project
 
-# ### ### ### ######### ######### #########
+# # ## ### ##### ######## ############# #####################
 ## API & Implementation
 
 snit::type ::bookflow::project {
-    # ### ### ### ######### ######### #########
+    # # ## ### ##### ######## ############# #####################
 
     typemethod isBookflow {path} {
 	if {![file exists $path]} { return 0 }
@@ -70,7 +70,7 @@ snit::type ::bookflow::project {
 	}]]
     }
 
-    # ### ### ### ######### ######### #########
+    # # ## ### ##### ######## ############# #####################
 
     # List of expected database tables. Must match the schema.
     typevariable ourtables {
@@ -112,7 +112,7 @@ snit::type ::bookflow::project {
 	return
     }
 
-    # ### ### ### ######### ######### #########
+    # # ## ### ##### ######## ############# #####################
 
     constructor {database} {
 	#Debug.bookflow/project { @ $database $project}
@@ -133,11 +133,12 @@ snit::type ::bookflow::project {
     }
 
     destructor {
-	$mydb close
+	if {$mydb eq {}} return
+        $mydb close 
 	return
     }
 
-    # ### ### ### ######### ######### #########
+    # # ## ### ##### ######## ############# #####################
     ## Public project methods
 
     method where {} {
@@ -160,6 +161,23 @@ snit::type ::bookflow::project {
 	return
     }
 
+    method indicator {image flags} {
+	#Debug.bookflow/project {}
+	dict with flags {}
+	$mydb transaction {
+	    $mydb eval {
+		UPDATE image
+		SET  used      = :used,
+		     content   = :content,
+		     even      = :even,
+		     attention = :attention
+		WHERE  path = :image
+	    }
+	}
+	#Debug.bookflow/project {/}
+	return
+    }
+
     method images {} {
 	$mydb transaction {
 	    set images [$mydb eval {
@@ -167,6 +185,41 @@ snit::type ::bookflow::project {
 	    }]
 	}
 	return [lsort -dict $images]
+    }
+
+    method images-all {} {
+	$mydb transaction {
+	    set images [$mydb eval {
+		SELECT path FROM image;
+	    }]
+	}
+	return [lsort -dict $images]
+    }
+
+    method thumbnail? {image} {
+	#Debug.bookflow/project {}
+	return thumbnail/[file root $image]
+    }
+
+    method medium? {image} {
+	#Debug.bookflow/project {}
+	return medium/[file root [file tail $image]].ppm
+    }
+
+    method indicator? {image} {
+	#Debug.bookflow/project {}
+
+	$mydb transaction {
+	    set data [$mydb eval {
+		SELECT used, content, even, attention FROM image
+		WHERE  path = :image
+	    }]
+	}
+
+	lassign $data used content even attention
+
+	#Debug.bookflow/project {/}
+	return [dict create used $used content $content even $even attention $attention]
     }
 
     if 0 {method thumbnail {image thumbdata} {
@@ -201,17 +254,17 @@ snit::type ::bookflow::project {
 
     ### Accessors and manipulators
 
-    # ### ### ### ######### ######### #########
+    # # ## ### ##### ######## ############# #####################
     ##
 
     variable mydb  ; # Handle of the sqlite database. Object command.
     variable mydir ; # Absolute path to the project directory (holding the images).
 
     ##
-    # ### ### ### ######### ######### #########
+    # # ## ### ##### ######## ############# #####################
 }
 
-# ### ### ### ######### ######### #########
+# # ## ### ##### ######## ############# #####################
 ## Ready
 
 package provide bookflow::project 0.1

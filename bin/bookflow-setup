@@ -1,26 +1,31 @@
 #!/usr/bin/env tclsh
 # -*- tcl -*-
-#########################
+# # ## ### ##### ######## ############# #####################
 # Scan the current directory for jpeg files and use them to initialize
 # a book flow project.
 
-lappend auto_path [file dirname [file dirname [file normalize [info script]]]]/lib
+package require Tcl 8.5
+
+::apply {{selfdir} {
+    # selfdir == bindir
+    lappend ::auto_path [file dirname $selfdir]/lib
+    return
+}} [file dirname [file normalize [info script]]]
 
 # TODO: Restrict to images of a certain size and/or make (camera type).
 
-package require Tcl 8.5
 package require fileutil
 package require fileutil::traverse
 package require jpeg
 package require bookflow::project
 
-#########################
+# # ## ### ##### ######## ############# #####################
 
 proc main {} {
     if {[catch {
-	set pdir   [cmdline]
-	set images [find-images $pdir]
-	generate-thumbnails $pdir $images
+	set imagedir [cmdline]
+	set images   [find-images $imagedir]
+	generate-thumbnails $imagedir $images
 	complete-project
     } msg]} {
 	puts stderr $msg
@@ -32,31 +37,31 @@ proc main {} {
 proc cmdline {} {
     global argv argv0
     if {[llength $argv] > 1} {
-	puts stderr "Usage: $argv0 ?projectdirectory?"
+	puts stderr "Usage: $argv0 ?image-directory?"
 	exit 1
     } elseif {[llength $argv] == 1} {
-	lassign $argv pdir
+	lassign $argv imagedir
     } else {
-	set pdir [pwd]
+	set imagedir [pwd]
     }
 
-    set pdir [file dirname [file normalize $pdir/___]]
+    set imagedir [file dirname [file normalize $imagedir/___]]
 
     # Set the project file up.
     set pfile [pwd]/BOOKFLOW
 
     puts stderr "Project file   @ $pfile"
 
-    bookflow::project new  $pfile $pdir
+    bookflow::project new  $pfile $imagedir
     bookflow::project BOOK $pfile
 
-    return $pdir
+    return $imagedir
 }
 
-proc find-images {pdir} {
+proc find-images {imagedir} {
     set here [pwd]
-    scan-init "Scan directory @ $pdir : "
-    set images [lsort -dict [scan-path $pdir]]
+    scan-init "Scan directory @ $imagedir : "
+    set images [lsort -dict [scan-path $imagedir]]
     scan-done
 
     puts stderr "Updating project with images: [llength $images]"
@@ -68,7 +73,7 @@ proc find-images {pdir} {
     return $images
 }
 
-proc generate-thumbnails {pdir images} {
+proc generate-thumbnails {imagedir images} {
     if {![llength $images]} return
 
     set k 0
@@ -79,7 +84,7 @@ proc generate-thumbnails {pdir images} {
 	puts -nonewline stderr "\rThumbnail $image \[$k/$n\]"
 	flush stderr
 
-	set thumb [jpeg::getThumbnail $pdir/$image]
+	set thumb [jpeg::getThumbnail $imagedir/$image]
 	if {$thumb eq {}} {
 	    puts -nonewline stderr " MISSING"
 	    flush stderr
@@ -105,7 +110,7 @@ proc complete-project {} {
     return
 }
 
-#########################
+# # ## ### ##### ######## ############# #####################
 # Frontend - Scanning
 
 proc scan-init {prefix} {
@@ -164,7 +169,7 @@ proc scan-path {path} {
     return $result
 }
 
-#########################
+# # ## ### ##### ######## ############# #####################
 
 main
 exit

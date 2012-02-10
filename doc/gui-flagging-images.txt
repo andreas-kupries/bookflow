@@ -35,8 +35,8 @@ Keyboard controls of the application. No button, no menu.
 	!	Toggle attention
 	d	Toggle image in project ((un)drop).	(x)
 
-	f	Mark as front cover	(combo l+c)
-	b	Mark as back cover	(combo r+c)
+	f	Mark as front cover	(combo r+c)
+	b	Mark as back cover	(combo l+c)
 
 	l	Mark as left/even	(default)
 	r	Mark as right/odd

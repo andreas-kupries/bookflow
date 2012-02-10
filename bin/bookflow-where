@@ -1,24 +1,25 @@
 #!/usr/bin/env tclsh
 # -*- tcl -*-
-#########################
-# Scan the current directory for jpeg files and use them to initialize
-# a book flow project.
-
-lappend auto_path [file dirname [file dirname [file normalize [info script]]]]/lib
-
-# TODO: Restrict to images of a certain size and/or make (camera type).
+# # ## ### ##### ######## ############# #####################
+# Inspect the project database and determine the location of the image
+# directory.
 
 package require Tcl 8.5
-package require fileutil
-package require fileutil::traverse
-package require jpeg
+
+::apply {{selfdir} {
+    # selfdir == bindir
+    lappend ::auto_path [file dirname $selfdir]/lib
+    return
+}} [file dirname [file normalize [info script]]]
+
 package require bookflow::project
 
-#########################
+# # ## ### ##### ######## ############# #####################
 
 proc main {} {
     if {[catch {
-	puts [cmdline]
+	cmdline
+	puts [BOOK where]
 	BOOK destroy
     } msg]} {
 	puts stderr $msg
@@ -29,19 +30,20 @@ proc main {} {
 
 proc cmdline {} {
     global argv argv0
-    if {[llength $argv] != 0} {
-	puts stderr "Usage: $argv0"
+    if {[llength $argv] > 1} {
+	puts stderr "Usage: $argv0 ?projectdir?"
 	exit 1
     }
+    if {[llength $argv] == 1} {
+	cd [lindex $argv 0]
+    }
 
-    # Set the project file up.
-    set pfile [pwd]/BOOKFLOW
-
-    bookflow::project BOOK $pfile
-    return [BOOK where]
+    # Open the project file.
+    bookflow::project BOOK [pwd]/BOOKFLOW
+    return
 }
 
-#########################
+# # ## ### ##### ######## ############# #####################
 
 main
 exit

@@ -1,0 +1,557 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+# # ## ### ##### ######## ############# #####################
+# Take the current project for the user to go over images and flag their properties
+# (left/right, cover/content, exclude bad). Requires the medium size thumbnails for
+# display (made by -> bookflow-gen-medium).
+
+package require Tcl 8.5
+
+::apply {{selfdir} {
+    # selfdir == bindir
+    lappend ::auto_path [file dirname $selfdir]/lib
+    return
+}} [file dirname [file normalize [info script]]]
+
+# TODO: Restrict to images of a certain size and/or make (camera type).
+
+package require Tk  8.5
+package require widget::toolbar
+package require widget::statusbar
+package require widget::scrolledwindow
+package require bookflow::project
+package require crimp::tk  ;# crimp -> photo
+package require crimp::ppm ;# crimp -> reading ppm
+# XXX TODO: crimp::jpeg
+package require action
+package require famfamfam::silk
+package require tooltip
+
+# # ## ### ##### ######## ############# #####################
+
+proc main {} {
+    if {[catch {
+	cmdline
+	view
+	controller
+	model
+    } msg]} {
+	puts stderr $msg
+	exit 1
+    }
+
+    # Begin event loop, and interaction
+    vwait ::forever
+    return
+}
+
+proc cmdline {} {
+    global argv argv0
+    if {[llength $argv] > 1} {
+	puts stderr "Usage: $argv0 ?projectdir?"
+	exit 1
+    }
+    if {[llength $argv] == 1} {
+	cd [lindex $argv 0]
+    }
+
+    # Open the project file.
+    bookflow::project BOOK [pwd]/BOOKFLOW
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+## View
+
+proc view {} {
+    wm withdraw .
+    view/widgets
+    view/layout
+    wm deiconify .
+    return
+}
+
+proc view/widgets {} {
+    # listbox, left or right, of all images (fast switching).
+    # various labels for status icons
+    # label displaying the current page image
+    # buttons: next, previous, first, last, exit - toolbar
+    # statusbar - messages ...
+
+    ::widget::toolbar   .tools
+    ::widget::statusbar .status
+
+    ttk::label          .status.message  \
+	-textvariable ::vstatus \
+	-width 1 -anchor w
+    .status add .status.message -weight 1
+
+    widget::scrolledwindow .sw -borderwidth 1 -relief sunken
+    listbox                .images \
+	-listvariable ::vimages \
+	-selectmode extended
+    .sw setwidget .images
+
+    label                  .page -bd 5
+
+    ttk::label          .left
+    ttk::label          .right
+    ttk::label          .attention
+    ttk::label          .dropped
+
+    view/tool/add arrow_left  |<--   First    first
+    view/tool/add arrow_left   <--   Previous previous
+    view/tool/add arrow_right   -->  Next     next
+    view/tool/add arrow_right   -->| Last     last
+    view/tool/space
+    view/tool/add asterisk_orange Exit Exit exit
+
+    view/tag .
+    return
+}
+
+proc view/tag {w} {
+    bindtags $w [list _self {*}[bindtags $w]]
+    foreach c [winfo children $w] {
+	view/tag $c
+    }
+    return
+}
+
+proc view/tool/add {image label hint action args} {
+    set     cmd {}
+    lappend cmd .tools add button $label
+    lappend cmd -text $label
+    lappend cmd -command [list action invoke $action] {*}$args
+    if {$image ne {}} {
+	lappend cmd -image [famfamfam silk get $image]
+    }
+
+    {*}$cmd
+
+    set w [.tools itemid $label]
+
+    tooltip::tooltip $w $hint
+    after 0 [list action link $action $w]
+    return
+}
+
+proc view/tool/space {} {
+    .tools add space  ____ -separator 1
+    return
+}
+
+proc view/layout {} {
+    grid columnconfigure . 0 -weight 0
+    grid columnconfigure . 1 -weight 0
+    grid columnconfigure . 2 -weight 0
+    grid columnconfigure . 3 -weight 1
+    grid columnconfigure . 4 -weight 0
+    grid columnconfigure . 5 -weight 0
+
+    grid rowconfigure    . 0 -weight 0
+    grid rowconfigure    . 1 -weight 0
+    grid rowconfigure    . 2 -weight 0
+    grid rowconfigure    . 3 -weight 1
+    grid rowconfigure    . 4 -weight 0
+
+    view/layout/at .tools     0 0 1 6
+    view/layout/at .sw        1 0 3 1
+    view/layout/at .left      1 1 1 1
+    view/layout/at .attention 1 2 1 1
+    view/layout/at .dropped   1 3 1 1
+    view/layout/at .right     1 5 1 1
+    view/layout/at .page      3 1 1 5
+    view/layout/at .status    4 0 1 6
+    return
+}
+
+proc view/layout/at {widget row col r c} {
+    grid $widget -row $row -column $col \
+	-sticky swen -rowspan $r -columnspan $c
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+# # ## ### ##### ######## ############# #####################
+# View. Entrypoints for the controller.
+
+proc view/status {text} {
+    set ::vstatus $text
+    return
+}
+
+proc view/show {select index image used even content attention} {
+    #puts "v/s |$select $index $image i$used e$even c$content a$attention|"
+    catch { image delete [.page cget -image] }
+    .page configure -image $image
+
+    if {$attention} {
+	.attention configure -image [famfamfam silk get exclamation]
+    } else {
+	.attention configure -image {}
+    }
+
+    if {$used} {
+	.dropped configure -image {}
+    } else {
+	.dropped configure -image [famfamfam silk get cross]
+    }
+
+    if {$even} {
+	.left  configure -image [famfamfam silk get asterisk_yellow]
+	.right configure -image {}
+    } else {
+	.left  configure -image {}
+	.right configure -image [famfamfam silk get asterisk_yellow]
+    }
+
+    if {$content} { ; # content page
+	.page configure -bg blue
+    } else { ; # cover page
+	.page configure -bg green
+    }
+
+    # List visualization of the flags
+    .images itemconfigure $index \
+	{*}[view/list/flags $used $even $content $attention]
+
+    # Modify list
+    if {$select} {
+	#puts XS=$index
+	.images selection clear 0 end
+	.images selection set $index
+	.images activate $index
+	c/selection
+    }
+    .images see $index
+    return
+}
+
+proc view/show/none {} {
+    image delete [.page cget -image]
+
+    .page      configure -image {} -bg black
+    .attention configure -image {}
+    .dropped   configure -image {}
+    .right     configure -image {}
+    .left      configure -image {}
+    return
+}
+
+proc view/list/fill {images iflags} {
+    set ::vimages $images
+    set k 0
+    foreach item $iflags {
+	lassign $item _ used even content attention
+	.images itemconfigure $k \
+	    {*}[view/list/flags $used $even $content $attention]
+	incr k
+    }
+    return
+}
+
+proc view/list/flags {used even content attention} {
+    set options {}
+
+    if {$content} {
+	lappend options -fg black
+    } else {
+	lappend options -fg green
+    }
+    if {!$used} {
+	lappend options -bg red
+    } elseif {$attention} {
+	lappend options -bg yellow
+    } else {
+	lappend options -bg white
+    }
+
+    return $options
+}
+
+proc view/selection {} {
+    return [.images curselection]
+}
+
+# # ## ### ##### ######## ############# #####################
+## Controller
+
+proc controller {} {
+    c/actions
+    c/bindings
+
+    after 0 c/launch
+    return
+}
+
+proc c/actions {} {
+    action define exit     ::exit
+
+    action define next      c/show/next
+    action define previous  c/show/previous
+    action define first     c/show/first
+    action define last      c/show/last
+
+    action define attention c/toggle/attention
+    action define drop      c/toggle/used
+    action define front     c/mark/cover_front
+    action define back      c/mark/cover_back
+    action define left      c/mark/even 1
+    action define right     c/mark/even 0
+    action define cover     c/mark/content 0
+    action define page      c/mark/content 1
+    return
+}
+
+proc c/bindings {} {
+    bind _self <q>      {action invoke exit ; break}
+
+    bind _self <Left>   {action invoke previous ; break}
+    bind _self <Right>  {action invoke next ; break}
+    bind _self <Up>     {action invoke previous ; break}
+    bind _self <Down>   {action invoke next ; break}
+    bind _self <Prior>  {action invoke previous ; break}
+    bind _self <Next>   {action invoke next ; break}
+    bind _self <Home>   {action invoke first ; break}
+    bind _self <End>    {action invoke last ; break}
+
+    bind .images <<ListboxSelect>> c/selection
+
+    bind _self <exclam> {action invoke attention ; break}
+    bind _self <d>      {action invoke drop ; break}
+    bind _self <f>      {action invoke front ; break}
+    bind _self <b>      {action invoke back ; break}
+    bind _self <l>      {action invoke left ; break}
+    bind _self <r>      {action invoke right ; break}
+    bind _self <c>      {action invoke cover ; break}
+    bind _self <p>      {action invoke page ; break}
+    return
+}
+
+proc c/launch {} {
+    action disable
+    action enable exit
+
+    m/initialize c/ready
+    return
+}
+
+proc c/ready {} {
+    global cimages cchosen
+    set cchosen {}
+    lassign [m/list] cimages iflags
+    view/list/fill $cimages $iflags
+    c/show/first
+    after 0 {action enable}
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+## Controller state
+
+global cimages  ; # list of shown images
+global cchosen  ; # indices of the selected images
+global cshown   ; # index of the shown image
+global ccurrent ; # path of the shown image
+global cflags   ; # flags of the shown image
+
+# # ## ### ##### ######## ############# #####################
+# # ## ### ##### ######## ############# #####################
+# Implementations for the various actions
+
+proc c/selection {} {
+    global cchosen
+    set current [view/selection]
+    #puts C=$current
+    #puts S=$cchosen
+    if {$current eq $cchosen} return
+    set cchosen $current
+    #puts S*$cchosen
+    if {[llength $cchosen]} {
+	c/show [lindex $cchosen 0] 0
+    } else {
+	c/show/none
+    }
+    return
+}
+
+proc c/load {index} {
+    global cshown ccurrent cimages cflags
+    # Locate image by index, then translate index (possibly symbolic,
+    # or relative) to a proper integer number.
+    set ccurrent [lindex $cimages $index]
+    set cshown   [lsearch -exact $cimages $ccurrent]
+    set cflags   [lassign [m/get $ccurrent] image]
+    return
+}
+
+proc c/show {index {select 1}} {
+    global cshown ccurrent cimages cflags
+    # Locate image by index, then translate index (possibly symbolic,
+    # or relative) to a proper integer number.
+    set ccurrent [lindex $cimages $index]
+    set cshown   [lsearch -exact $cimages $ccurrent]
+    set cflags   [lassign [m/get $ccurrent] image]
+
+    view/show $select $cshown $image {*}$cflags
+    view/status [expr {1+$cshown}]/[llength $cimages]
+    return
+}
+
+proc c/show/none {} {
+    view/show/none
+    view/status {}
+    return
+}
+
+proc c/show/first {} {
+    c/show 0
+    return
+}
+
+proc c/show/last {} {
+    c/show end
+    return
+}
+
+proc c/show/next {} {
+    c/show [c/advance]
+    return
+}
+
+proc c/show/previous {} {
+    c/show [c/advance -1]
+    return
+}
+
+proc c/advance {{step 1}} {
+    global cshown cimages
+    set n $cshown
+    incr n $step
+    if {$n < 0} {
+	set n [llength $cimages]
+	incr n -1
+    } elseif {$n >= [llength $cimages]} {
+	set n 0
+    }
+    return $n
+}
+
+proc c/apply/selection {label script} {
+    global cchosen cflags ccurrent cshown
+    if {![llength $cchosen]} return
+    action disable
+    set saved $cshown
+    foreach sel $cchosen {
+	view/status "\[$label [expr {1+$sel}]\]"
+	update
+	c/load $sel
+	lassign $cflags u e c a
+	eval $script
+	m/set $ccurrent $u $e $c $a
+	c/load $sel
+    }
+    c/show $saved 0
+    action enable
+    return
+}
+
+proc c/toggle/attention {} {
+    c/apply/selection {toggle attention} {
+	set a [expr {!$a}]
+    }
+    return
+}
+
+proc c/toggle/used {} {
+    c/apply/selection {toggle used} {
+	set u [expr {!$u}]
+    }
+    return
+}
+
+proc c/mark/cover_front {} {
+    c/apply/selection {front cover} {
+	set e 0
+	set c 0
+    }
+    return
+}
+
+proc c/mark/cover_back {} {
+    c/apply/selection {back cover} {
+	set e 1
+	set c 0
+    }
+    return
+}
+
+proc c/mark/even {even} {
+    set w [expr {$even ? "left/even" : "right/odd"}]
+    c/apply/selection $w {
+	upvar 1 even even
+	set e $even
+    }
+    return
+}
+
+proc c/mark/content {page} {
+    set w [expr {$page ? "content" : "cover"}]
+    c/apply/selection $w {
+	upvar 1 page page
+	set c $page
+    }
+    return
+}
+
+# # ## ### ##### ######## ############# #####################
+## Model
+
+proc model {} {
+    # nothing at the moment
+    return
+}
+
+proc m/initialize {args} {
+    global mimages
+
+    set mimages  {}
+    foreach i [BOOK images-all] {
+	set flags   [BOOK indicator? $i]
+	dict with flags {}
+	lappend mimages \
+	    [list $i $used $even $content $attention]
+    }
+    after 0 $args
+    return
+}
+
+proc m/get {imgpath} {
+    set imgfile [BOOK medium? $imgpath]
+    set image   [image create photo -file $imgfile]
+    set flags   [BOOK indicator? $imgpath]
+    dict with flags {}
+    return [list $image $used $even $content $attention]
+}
+
+proc m/set {imgpath used even content attention} {
+    #puts "m/set |$imgpath i$used e$even c$content a$attention|"
+    BOOK indicator $imgpath \
+	[dict create \
+	     used      $used \
+	     even      $even \
+	     content   $content \
+	     attention $attention]
+    return
+}
+
+proc m/list {} {
+    global mimages
+    return [list [BOOK images-all] $mimages]
+}
+
+# # ## ### ##### ######## ############# #####################
+
+main
+exit

@@ -19,6 +19,10 @@ package require Tk  8.5
 package require widget::toolbar
 package require widget::statusbar
 package require widget::scrolledwindow
+
+# Would prefer to have a widget::progressbar
+package require BWidget ; ProgressBar::use
+
 package require bookflow::project
 package require crimp::tk  ;# crimp -> photo
 package require crimp::ppm ;# crimp -> reading ppm
@@ -84,16 +88,20 @@ proc view/widgets {} {
     ttk::label          .status.message  \
 	-textvariable ::vstatus \
 	-width 1 -anchor w
-    .status add .status.message -weight 1
+
+    ProgressBar         .status.progress \
+	-variable ::vprogress \
+	-type infinite -orient horizontal \
+	-bd 1 -relief sunken
 
     widget::scrolledwindow .sw -borderwidth 1 -relief sunken
     listbox                .images \
 	-listvariable ::vimages \
 	-selectmode extended
-    .sw setwidget .images
 
-    label                  .page -bd 5
+    label               .page -bd 5
 
+    ttk::label          .orient
     ttk::label          .left
     ttk::label          .right
     ttk::label          .attention
@@ -142,12 +150,18 @@ proc view/tool/space {} {
 }
 
 proc view/layout {} {
+    .sw setwidget .images
+
+    .status add .status.message -weight 1
+    .status add .status.progress
+
     grid columnconfigure . 0 -weight 0
     grid columnconfigure . 1 -weight 0
     grid columnconfigure . 2 -weight 0
-    grid columnconfigure . 3 -weight 1
+    grid columnconfigure . 3 -weight 0
     grid columnconfigure . 4 -weight 0
-    grid columnconfigure . 5 -weight 0
+    grid columnconfigure . 5 -weight 1
+    grid columnconfigure . 6 -weight 0
 
     grid rowconfigure    . 0 -weight 0
     grid rowconfigure    . 1 -weight 0
@@ -155,14 +169,15 @@ proc view/layout {} {
     grid rowconfigure    . 3 -weight 1
     grid rowconfigure    . 4 -weight 0
 
-    view/layout/at .tools     0 0 1 6
+    view/layout/at .tools     0 0 1 7
     view/layout/at .sw        1 0 3 1
-    view/layout/at .left      1 1 1 1
-    view/layout/at .attention 1 2 1 1
-    view/layout/at .dropped   1 3 1 1
-    view/layout/at .right     1 5 1 1
-    view/layout/at .page      3 1 1 5
-    view/layout/at .status    4 0 1 6
+    view/layout/at .orient    1 1 1 1
+    view/layout/at .left      1 2 1 1
+    view/layout/at .attention 1 3 1 1
+    view/layout/at .dropped   1 4 1 1
+    view/layout/at .right     1 6 1 1
+    view/layout/at .page      3 1 1 6
+    view/layout/at .status    4 0 1 7
     return
 }
 
@@ -181,7 +196,20 @@ proc view/status {text} {
     return
 }
 
-proc view/show {select index image used even content attention} {
+proc view/progress/tick {} {
+    .status add .status.progress
+    incr ::vprogress
+    return
+}
+
+proc view/progress/reset {} {
+    catch { .status remove .status.progress }
+    set ::vprogress 0
+    return
+}
+
+proc view/show {select index image used even content attention orientation} {
+    global oicon
     #puts "v/s |$select $index $image i$used e$even c$content a$attention|"
     catch { image delete [.page cget -image] }
     .page configure -image $image
@@ -206,15 +234,17 @@ proc view/show {select index image used even content attention} {
 	.right configure -image [famfamfam silk get asterisk_yellow]
     }
 
+    .orient configure -image [famfamfam silk get $oicon($orientation)]
+
     if {$content} { ; # content page
 	.page configure -bg blue
-    } else { ; # cover page
+    } else {        ; # cover page
 	.page configure -bg green
     }
 
     # List visualization of the flags
     .images itemconfigure $index \
-	{*}[view/list/flags $used $even $content $attention]
+	{*}[view/list/flags $used $even $content $attention $orientation]
 
     # Modify list
     if {$select} {
@@ -232,6 +262,7 @@ proc view/show/none {} {
     image delete [.page cget -image]
 
     .page      configure -image {} -bg black
+    .orient    configure -image {}
     .attention configure -image {}
     .dropped   configure -image {}
     .right     configure -image {}
@@ -243,15 +274,15 @@ proc view/list/fill {images iflags} {
     set ::vimages $images
     set k 0
     foreach item $iflags {
-	lassign $item _ used even content attention
+	lassign $item _ used even content attention orientation
 	.images itemconfigure $k \
-	    {*}[view/list/flags $used $even $content $attention]
+	    {*}[view/list/flags $used $even $content $attention $orientation]
 	incr k
     }
     return
 }
 
-proc view/list/flags {used even content attention} {
+proc view/list/flags {used even content attention orientation} {
     set options {}
 
     if {$content} {
@@ -301,31 +332,46 @@ proc c/actions {} {
     action define right     c/mark/even 0
     action define cover     c/mark/content 0
     action define page      c/mark/content 1
+
+    action define east      c/orient east
+    action define south     c/orient south
+    action define west      c/orient west
+    action define north     c/orient north
     return
 }
 
 proc c/bindings {} {
+    # Leave
     bind _self <q>      {action invoke exit ; break}
 
+    # Navigation
     bind _self <Left>   {action invoke previous ; break}
-    bind _self <Right>  {action invoke next ; break}
+    bind _self <Right>  {action invoke next     ; break}
     bind _self <Up>     {action invoke previous ; break}
-    bind _self <Down>   {action invoke next ; break}
+    bind _self <Down>   {action invoke next     ; break}
     bind _self <Prior>  {action invoke previous ; break}
-    bind _self <Next>   {action invoke next ; break}
-    bind _self <Home>   {action invoke first ; break}
-    bind _self <End>    {action invoke last ; break}
+    bind _self <Next>   {action invoke next     ; break}
+    bind _self <Home>   {action invoke first    ; break}
+    bind _self <End>    {action invoke last     ; break}
 
+    # Selection
     bind .images <<ListboxSelect>> c/selection
 
+    # Flags
     bind _self <exclam> {action invoke attention ; break}
-    bind _self <d>      {action invoke drop ; break}
-    bind _self <f>      {action invoke front ; break}
-    bind _self <b>      {action invoke back ; break}
-    bind _self <l>      {action invoke left ; break}
-    bind _self <r>      {action invoke right ; break}
-    bind _self <c>      {action invoke cover ; break}
-    bind _self <p>      {action invoke page ; break}
+    bind _self <d>      {action invoke drop      ; break}
+    bind _self <f>      {action invoke front     ; break}
+    bind _self <b>      {action invoke back      ; break}
+    bind _self <l>      {action invoke left      ; break}
+    bind _self <r>      {action invoke right     ; break}
+    bind _self <c>      {action invoke cover     ; break}
+    bind _self <p>      {action invoke page      ; break}
+
+    # Orientation
+    bind _self <e>      {action invoke east      ; break}
+    bind _self <s>      {action invoke south     ; break}
+    bind _self <w>      {action invoke west      ; break}
+    bind _self <n>      {action invoke north     ; break}
     return
 }
 
@@ -443,17 +489,21 @@ proc c/apply/selection {label script} {
     if {![llength $cchosen]} return
     action disable
     set saved $cshown
+    set count 0
+    set max [llength $cchosen]
     foreach sel $cchosen {
-	view/status "\[$label [expr {1+$sel}]\]"
+	view/status "\[$label [expr {1+$sel}]\] [incr count]/$max"
+	view/progress/tick
 	update
 	c/load $sel
-	lassign $cflags u e c a
+	lassign $cflags u e c a o
 	eval $script
-	m/set $ccurrent $u $e $c $a
+	m/set $ccurrent $u $e $c $a $o
 	c/load $sel
     }
     c/show $saved 0
     action enable
+    view/progress/reset
     return
 }
 
@@ -472,26 +522,34 @@ proc c/toggle/used {} {
 }
 
 proc c/mark/cover_front {} {
-    c/apply/selection {front cover} {
-	set e 0
-	set c 0
+    c/apply/selection {front cover/west} {
+	set e 0 ; # odd == right == front
+	set c 0 ; # cover
+	set o 2 ; # west
     }
     return
 }
 
 proc c/mark/cover_back {} {
-    c/apply/selection {back cover} {
-	set e 1
-	set c 0
+    c/apply/selection {back cover/east} {
+	set e 1 ; # even == left == back
+	set c 0 ; # cover
+	set o 0 ; # east
     }
     return
 }
 
 proc c/mark/even {even} {
+    # Note: orientation derived from left/right
+    # Explicit orientation must be done after l/r classification
+    global omap
     set w [expr {$even ? "left/even" : "right/odd"}]
-    c/apply/selection $w {
-	upvar 1 even even
+    set theorient [expr {$even ? "east" : "west"}]
+    set orient $omap($theorient)
+    c/apply/selection $w/$theorient {
+	upvar 1 even even orient orient
 	set e $even
+	set o $orient
     }
     return
 }
@@ -501,6 +559,30 @@ proc c/mark/content {page} {
     c/apply/selection $w {
 	upvar 1 page page
 	set c $page
+    }
+    return
+}
+
+array set omap {
+    0 0 east  0
+    1 1 south 1
+    2 2 west  2
+    3 3 north 3
+}
+
+array set oicon {
+    0 arrow_right  east  arrow_right
+    1 arrow_down   south arrow_down
+    2 arrow_left   west  arrow_left
+    3 arrow_up     north arrow_up
+}
+
+proc c/orient {theorient} {
+    global omap
+    set orient $omap($theorient)
+    c/apply/selection $theorient {
+	upvar 1 orient orient
+	set o $orient
     }
     return
 }
@@ -532,17 +614,18 @@ proc m/get {imgpath} {
     set image   [image create photo -file $imgfile]
     set flags   [BOOK indicator? $imgpath]
     dict with flags {}
-    return [list $image $used $even $content $attention]
+    return [list $image $used $even $content $attention $orientation]
 }
 
-proc m/set {imgpath used even content attention} {
+proc m/set {imgpath used even content attention orientation} {
     #puts "m/set |$imgpath i$used e$even c$content a$attention|"
     BOOK indicator $imgpath \
-	[dict create \
-	     used      $used \
-	     even      $even \
-	     content   $content \
-	     attention $attention]
+	[dict create            \
+	     used        $used   \
+	     even        $even    \
+	     content     $content  \
+	     attention   $attention \
+	     orientation $orientation]
     return
 }
 

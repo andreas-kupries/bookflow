@@ -610,9 +610,8 @@ proc m/initialize {args} {
 }
 
 proc m/get {imgpath} {
-    set imgfile [BOOK medium? $imgpath]
-    set image   [image create photo -file $imgfile]
-    set flags   [BOOK indicator? $imgpath]
+    set image [BOOK medium?    $imgpath]
+    set flags [BOOK indicator? $imgpath]
     dict with flags {}
     return [list $image $used $even $content $attention $orientation]
 }

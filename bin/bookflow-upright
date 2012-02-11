@@ -1,0 +1,153 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+# # ## ### ##### ######## ############# #####################
+
+# Go through the medium images in the project and rotate them so that
+# they are upright.
+
+# NOTE That this code is NOT touching the original images at all.
+# That is for a later phase when we have all the data needed to extract
+# the content area of each page (i.e. rotation, chop, and warp data).
+
+package require Tcl 8.5
+
+::apply {{selfdir} {
+    # selfdir == bindir
+    lappend ::auto_path [file dirname $selfdir]/lib
+    return
+}} [file dirname [file normalize [info script]]]
+
+# TODO: Restrict to images of a certain size and/or make (camera type).
+
+package require bookflow::project
+
+package require fileutil
+package require crimp::ppm ;# reading ppm -> crimp -> writing ppm
+package require crimp      ;# rotation
+
+proc mi {} { return
+    set mi [split [memory info] \n]
+    return [list [lindex $mi 3 3] [lindex $mi 5 3]]
+}
+
+# # ## ### ##### ######## ############# #####################
+
+proc main {} {
+    if {[catch {
+	cmdline
+	rotate-upright
+	complete-project
+    } msg]} {
+puts $::errorInfo
+	puts stderr $msg
+	exit 1
+    }
+    return
+}
+
+proc cmdline {} {
+    global argv argv0
+    if {[llength $argv] > 1} {
+	puts stderr "Usage: $argv0 ?projectdir?"
+	exit 1
+    }
+    if {[llength $argv] == 1} {
+	cd [lindex $argv 0]
+    }
+
+    # Open the project file.
+    bookflow::project BOOK [pwd]/BOOKFLOW
+    return
+}
+
+array set omap {
+    0 east
+    1 south
+    2 west
+    3 north
+}
+
+proc rotate-upright {} {
+    global omap
+
+    set images [BOOK images-all]
+    if {![llength $images]} return
+
+    set pdir [BOOK where]
+
+    set k 0
+    set n [llength $images]
+
+    foreach image $images {
+	incr k
+	tell "\rUpright $image \[$k/$n\]"
+
+	set flags [BOOK indicator? $image]
+	dict with flags {}
+
+	set orientation $omap($orientation)
+
+	set src [BOOK medium-path $image]
+	set dst [BOOK upright-path $image]
+
+	# Nothing to be done but copying if the image is upright
+	# already.
+	if {$orientation eq "north"} {
+	    tell "/copy                           "
+	    file link -hard $dst $src
+	    #file copy $src $dst
+	    continue
+	}
+
+	# Load image, by way of Tk photo - crimp currently doesn't
+	# have a jpeg reader, yet.
+
+	tell " /load"
+	set i [crimp read ppm [fileutil::cat -translation binary $src]]
+
+	tell /rotate/$orientation
+	switch -exact -- $orientation {
+	    east {
+		# 90 counter clockwise
+		tell /-90
+		set i [crimp rotate ccw $i]
+	    }
+	    south {
+		# 180 any direction
+		tell /180
+		set i [crimp rotate half $i]
+	    }
+	    west {
+		# 90 clock wise
+		tell /90
+		set i [crimp rotate cw $i]
+	    }
+	    default {
+		error "internal bad orientation $orientation"
+	    }
+	}
+
+	tell /write
+	crimp write 2file ppm-raw $dst $i
+
+	tell " OK [mi]"
+    }
+
+    puts stderr ""
+    return
+}
+
+proc complete-project {} {
+    BOOK destroy
+    return
+}
+
+proc tell {text} {
+    puts -nonewline stderr $text
+    flush stderr
+}
+
+# # ## ### ##### ######## ############# #####################
+
+main
+exit

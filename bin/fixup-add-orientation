@@ -1,0 +1,70 @@
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+#########################
+# Scan the current directory for jpeg files and use them to initialize
+# a book flow project.
+
+lappend auto_path [file dirname [file dirname [file normalize [info script]]]]/lib
+
+# TODO: Restrict to images of a certain size and/or make (camera type).
+
+package require Tcl 8.5
+package require fileutil
+package require fileutil::traverse
+package require jpeg
+package require bookflow::project
+
+#########################
+
+proc main {} {
+    if {[catch {
+	cmdline
+	fix
+    } msg]} {
+	puts stderr $msg
+	exit 1
+    }
+    return
+}
+
+proc cmdline {} {
+    global argv argv0
+    if {[llength $argv] > 1} {
+	puts stderr "Usage: $argv0 ?projectdir?"
+	exit 1
+    }
+    if {[llength $argv] == 1} {
+	cd [lindex $argv 0]
+    }
+
+    # Open the project file.
+    bookflow::project BOOK [pwd]/BOOKFLOW
+    return
+}
+
+proc fix {} {
+    set db [BOOK db]
+    $db transaction {
+	$db eval {
+	    ALTER TABLE image
+	    ADD COLUMN orientation 
+	    INTEGER NOT NULL DEFAULT 0; -- east
+
+	    -- UPDATE image
+	    -- SET orientation = 0 -- east
+	    -- WHERE even = 0;     -- right
+
+	    UPDATE image
+	    SET orientation = 2 -- west
+	    WHERE even = 1;     -- left
+	}
+    }
+
+    BOOK destroy
+    return
+}
+
+#########################
+
+main
+exit

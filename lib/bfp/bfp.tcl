@@ -114,6 +114,8 @@ snit::type ::bookflow::project {
 
     # # ## ### ##### ######## ############# #####################
 
+    method db {} { return $mydb }
+
     constructor {database} {
 	#Debug.bookflow/project { @ $database $project}
 
@@ -151,8 +153,8 @@ snit::type ::bookflow::project {
 	$mydb transaction {
 	    foreach image $images {
 		$mydb eval {
-		    INSERT INTO image VALUES (NULL,:image,1,1,1,0)
-		    -- flags => used, page, even, !attention
+		    INSERT INTO image VALUES (NULL,:image,1,1,1,0,0)
+		    -- flags => used, page, even, !attention, east
 		}
 	    }
 	}
@@ -167,10 +169,11 @@ snit::type ::bookflow::project {
 	$mydb transaction {
 	    $mydb eval {
 		UPDATE image
-		SET  used      = :used,
-		     content   = :content,
-		     even      = :even,
-		     attention = :attention
+		SET  used        = :used,
+		     content     = :content,
+		     even        = :even,
+		     attention   = :attention,
+		     orientation = :orientation
 		WHERE  path = :image
 	    }
 	}
@@ -211,15 +214,21 @@ snit::type ::bookflow::project {
 
 	$mydb transaction {
 	    set data [$mydb eval {
-		SELECT used, content, even, attention FROM image
+		SELECT used, content, even, attention, orientation
+		FROM image
 		WHERE  path = :image
 	    }]
 	}
 
-	lassign $data used content even attention
+	lassign $data used content even attention orientation
 
 	#Debug.bookflow/project {/}
-	return [dict create used $used content $content even $even attention $attention]
+	return [dict create \
+		    used        $used \
+		    content     $content \
+		    even        $even \
+		    attention   $attention \
+		    orientation $orientation]
     }
 
     if 0 {method thumbnail {image thumbdata} {

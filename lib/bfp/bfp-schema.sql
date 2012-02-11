@@ -31,13 +31,26 @@ CREATE TABLE image (
     --            nearby images where special, like !used. May indicate
     --            duplicated pages or similar.
     --
-    --          Note: even cover = back cover
-    --                odd cover  = front cover
+    --          Note: even/left  cover = back cover
+    --                odd /right cover = front cover
 
-    used      INTEGER NOT NULL DEFAULT 0,
-    content   INTEGER NOT NULL,
-    even      INTEGER NOT NULL,
-    attention INTEGER NOT NULL
+    -- orientation: which side of the image is the upper edge of the page
+    --              east  = 0 (order following the path of the sun in a day)
+    --              south = 1
+    --              west  = 2
+    --              north = 3
+    --
+    --		In my setup orientation can normally be derived from even,
+    --		i.e. left/right:
+    --
+    --		even == left  => east
+    --		odd  == right => west
+
+    used        INTEGER NOT NULL DEFAULT 0,
+    content     INTEGER NOT NULL,
+    even        INTEGER NOT NULL,
+    attention   INTEGER NOT NULL,
+    orientation INTEGER NOT NULL
 );
 
 -- CREATE TABLE thumb (

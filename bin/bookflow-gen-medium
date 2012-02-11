@@ -14,8 +14,6 @@ package require Tcl 8.5
 
 # TODO: Restrict to images of a certain size and/or make (camera type).
 
-package require fileutil
-package require fileutil::traverse
 package require bookflow::project
 
 package require crimp::tk  ;# photo -> crimp 
@@ -47,22 +45,27 @@ proc main {} {
 }
 
 proc cmdline {} {
-    global argv argv0
-    if {[llength $argv] > 1} {
-	puts stderr "Usage: $argv0 ?projectdir?"
+    global argv argv0 w h
+    if {([llength $argv] > 2) && ([llength $argv] < 1)} {
+	puts stderr "Usage: $argv0 w ?projectdir?"
 	exit 1
     }
+    set argv [lassign $argv w]
     if {[llength $argv] == 1} {
 	cd [lindex $argv 0]
     }
 
     # Open the project file.
     bookflow::project BOOK [pwd]/BOOKFLOW
+
+    set h [expr {3*$w/4}]
     return
 }
 
 proc generate-medium {} {
-    set images [BOOK images]
+    global w h
+
+    set images [BOOK images-all]
     if {![llength $images]} return
 
     set pdir [BOOK where]
@@ -82,42 +85,44 @@ proc generate-medium {} {
 	set i [crimp convert 2rgb [crimp read tk IMAGE]]
 	image delete IMAGE
 
-	# Blur it before sizing down, to make the resampler have
-	# (indirectly) access to not only the 4 corners around the
-	# pixel, but everything from the larger environment which
-	# should go into the new pixel.
+	# We blur the image before scaling it down, so that the
+	# resampler has (indirect) access to the larger environment
+	# the pxel is composed of, and not just the 4 corners around
+	# the origin point.
 
-	# What sigma do we need ? (scale dependent)
+	# What sigma do we need ? This is scale dependent.
+	# Sigma is a third of the factor we are scaling down by.
 
-	# Here scale down by 11.4, choose sigma 11.4/3 = 3.8
-	# filter radius becomes roughly 3 sigma = 11.4.
+	# Because the factor gives us the radius of the environment,
+	# and for a given sigma the effective filter radius is 3 times
+	# that, conversely making sigma a third of the radius.
 
-	tell /blur
-	set res {}
-	foreach c [crimp split $i] {
-	    tell *
-	    set c [crimp convert 2float $c]
-	    set c [crimp gaussian_blur_float $c 2]
-	    set c [crimp convert 2grey8 $c]
-	    lappend res $c
-	}
-	set i [crimp join 2rgb {*}$res]
-	unset res c
+	set iw [crimp width $i]
+	set sigma [expr {double($i)/(3*$w)}]
 
-	# Now the actual down sizing.
-	tell /resize
-	set i [crimp::resize $i 640 480]
+	tell /blur   ; set i [blur $i]
+	tell /resize ; set i [crimp::resize $i $w $h]
 
-	# And write it out. Change the extension, this not jpeg anymore.
-	file mkdir medium/;#[file dirname $image]
 	tell /write
-	crimp write 2file ppm-raw medium/[file root [file tail $image]].ppm $i
+	crimp write 2file ppm-raw [BOOK medium-path $image] $i
 
 	tell " OK [mi]"
     }
 
     puts stderr ""
     return
+}
+
+proc blur {i} {
+    set res {}
+    foreach c [crimp split $i] {
+	tell *
+	set c [crimp convert 2float $c]
+	set c [crimp gaussian_blur_float $c $sigma]
+	set c [crimp convert 2grey8 $c]
+	lappend res $c
+    }
+    return [crimp join 2rgb {*}$res]
 }
 
 proc complete-project {} {

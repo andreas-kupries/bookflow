@@ -181,7 +181,7 @@ snit::type ::bookflow::project {
 	return
     }
 
-    method images {} {
+    method images-used {} {
 	$mydb transaction {
 	    set images [$mydb eval {
 		SELECT path FROM image WHERE used = 1;
@@ -206,7 +206,26 @@ snit::type ::bookflow::project {
 
     method medium? {image} {
 	#Debug.bookflow/project {}
+	# XXX: Check that it is an image in the project?!
+	return [image create photo -file [$self medium-path $image]]
+    }
+
+    method medium-path {image} {
+	#Debug.bookflow/project {}
+	file mkdir medium
 	return medium/[file root [file tail $image]].ppm
+    }
+
+    method upright? {image} {
+	#Debug.bookflow/project {}
+	# XXX: Check that it is an image in the project?!
+	return [image create photo -file [upright-path $image]]
+    }
+
+    method upright-path {image} {
+	#Debug.bookflow/project {}
+	file mkdir upright
+	return upright/[file root [file tail $image]].ppm
     }
 
     method indicator? {image} {

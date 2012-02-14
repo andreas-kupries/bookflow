@@ -1,55 +1,52 @@
--- Global information about the project.
--- A simple key/value store.
---
--- Known keys and their meaning:
---   'path' : Absolute path to the project directory.
+#!/usr/bin/env tclsh
+# -*- tcl -*-
+#########################
 
-CREATE TABLE global (
-    key   TEXT NOT NULL PRIMARY KEY,
-    value TEXT NOT NULL
-);
+# Fix the schema of an existing bookflow database to contain the
+# tables necessary for handling double-pages, i.e. left/right
+# matchup.
 
--- Information about all images in the directory hierarchy associated
--- with the project.
+lappend auto_path [file dirname [file dirname [file normalize [info script]]]]/lib
 
-CREATE TABLE image (
-    -- Basic information: Row id, and path to the image file, relative
-    -- to the project directory.
+# TODO: Restrict to images of a certain size and/or make (camera type).
 
-    iid   INTEGER  NOT NULL  PRIMARY KEY  AUTOINCREMENT,
-    path  TEXT     NOT NULL  UNIQUE,
+package require Tcl 8.5
+package require fileutil
+package require fileutil::traverse
+package require jpeg
+package require bookflow::project
 
-    -- Various classifications, stored as booleans.
-    --
-    -- used:      true for images which do belong to the project.
-    --            false for images whioch don't
-    -- content:   true for images which contain book content pages
-    --            false for images of the book covers
-    -- even:      true for even-numbered (*) images (right of book spine)
-    --            false for odd-numbered images (left of book spine)
-    -- attention: true for images to look closely at. Mostly because
-    --            nearby images where special, like !used. May indicate
-    --            duplicated pages or similar.
-    --
-    --          Note: even/left  cover = back cover
-    --                odd /right cover = front cover
+#########################
 
-    -- orientation: which side of the image is the upper edge of the page.
-    --              See table 'orientation' for the encoding
-    --
-    --		In my setup orientation can normally be derived from even,
-    --		i.e. left/right:
-    --
-    --		even == left  => east
-    --		odd  == right => west
+proc main {} {
+    if {[catch {
+	cmdline
+	fix
+    } msg]} {
+	puts stderr $msg
+	exit 1
+    }
+    return
+}
 
-    used        INTEGER NOT NULL DEFAULT 0,
-    content     INTEGER NOT NULL,
-    even        INTEGER NOT NULL,
-    attention   INTEGER NOT NULL,
-    orientation INTEGER NOT NULL REFERENCES orientation
-);
+proc cmdline {} {
+    global argv argv0
+    if {[llength $argv] > 1} {
+	puts stderr "Usage: $argv0 ?projectdir?"
+	exit 1
+    }
+    if {[llength $argv] == 1} {
+	cd [lindex $argv 0]
+    }
 
+    # Open the project file.
+    sqlite3 BOOK [pwd]/BOOKFLOW
+    return
+}
+
+proc fix {} {
+    BOOK transaction {
+	BOOK eval {
 -- Information about all double-pages, i.e. spreads in the
 -- project. I.e which left and right images belong together, how they
 -- are ordered, where pieces are missing or blank.
@@ -103,3 +100,14 @@ CREATE TABLE pagestatus (
 INSERT INTO pagestatus VALUES (0,'ok');
 INSERT INTO pagestatus VALUES (1,'blank');
 INSERT INTO pagestatus VALUES (2,'missing');
+	}
+    }
+
+    rename BOOK {}
+    return
+}
+
+#########################
+
+main
+exit

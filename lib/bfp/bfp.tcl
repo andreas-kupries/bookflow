@@ -74,7 +74,7 @@ snit::type ::bookflow::project {
 
     # List of expected database tables. Must match the schema.
     typevariable ourtables {
-	global image
+	global image spread orientation pagestatus
     }
 
     # Loaded from companion file.

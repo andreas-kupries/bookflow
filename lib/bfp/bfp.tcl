@@ -190,6 +190,24 @@ snit::type ::bookflow::project {
 	return [lsort -dict $images]
     }
 
+    method images-left {} {
+	$mydb transaction {
+	    set images [$mydb eval {
+		SELECT path FROM image WHERE even = 1;
+	    }]
+	}
+	return [lsort -dict $images]
+    }
+
+    method images-right {} {
+	$mydb transaction {
+	    set images [$mydb eval {
+		SELECT path FROM image WHERE even = 0;
+	    }]
+	}
+	return [lsort -dict $images]
+    }
+
     method images-all {} {
 	$mydb transaction {
 	    set images [$mydb eval {
@@ -219,7 +237,7 @@ snit::type ::bookflow::project {
     method upright? {image} {
 	#Debug.bookflow/project {}
 	# XXX: Check that it is an image in the project?!
-	return [image create photo -file [upright-path $image]]
+	return [image create photo -file [$self upright-path $image]]
     }
 
     method upright-path {image} {
